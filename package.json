@@ -1,0 +1,19 @@
+{
+  "name": "navcoin-js",
+  "version": "1.0.0",
+  "description": "Navcoin Javascript Library",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "alex@nav.community",
+  "license": "ISC",
+  "dependencies": {
+    "bitcore-lib": "git+https://github.com/aguycalled/bitcore-lib.git",
+    "bitcore-mnemonic": "git+https://github.com/aguycalled/bitcore-mnemonic.git",
+    "electrum-client-js": "git+https://github.com/aguycalled/electrum-client-js.git",
+    "nedb-async": "^0.1.6",
+    "sleep": "^6.3.0"
+  }
+}
