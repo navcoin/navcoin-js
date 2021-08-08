@@ -29,9 +29,9 @@ njs.wallet.Init().then(async () => {
     wallet.on('sync_status', async (progress) => {
         console.log(`Sync ${progress}%`)
         if (progress == 100 && !alreadySent) {
-                 let txHash = await wallet.xNavSend('xNTpkPKgypNCsJmVk8PoNomqcmYEBHyHgZVjCPpFb2CbAv3ZsxmdFGfMJh7DL8U2JvkQULxj1kUHp8ATuhAsG3z2woufMcbyDT8doU2djJibaBzp3UFu2CKg2rsVD5fih2TaPzrwi9X', 1e8, 'memo for xnav payment', spendingPassword);
-       console.log(`Transaction sent to xN1231.... with hash ${txHash}`);
-          alreadySent = true;
+            /*let txHash = await wallet.xNavSend('xNTpkPKgypNCsJmVk8PoNomqcmYEBHyHgZVjCPpFb2CbAv3ZsxmdFGfMJh7DL8U2JvkQULxj1kUHp8ATuhAsG3z2woufMcbyDT8doU2djJibaBzp3UFu2CKg2rsVD5fih2TaPzrwi9X', 1e8, 'memo for xnav payment', spendingPassword);
+            console.log(`Transaction sent to xN1231.... with hash ${txHash}`);
+            alreadySent = true;*/
         }
     });
 
