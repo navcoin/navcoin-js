@@ -12,8 +12,8 @@
   "dependencies": {
     "bitcore-lib": "git+https://github.com/aguycalled/bitcore-lib.git",
     "bitcore-mnemonic": "git+https://github.com/aguycalled/bitcore-mnemonic.git",
+    "browserify": "^17.0.0",
     "electrum-client-js": "git+https://github.com/aguycalled/electrum-client-js.git",
-    "nedb-async": "^0.1.6",
-    "sleep": "^6.3.0"
+    "nedb-async": "^0.1.6"
   }
 }
