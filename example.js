@@ -28,10 +28,14 @@ njs.wallet.Init().then(async () => {
 
     wallet.on('sync_status', async (progress, scripthash) => {
         console.log(`Sync ${progress}%`)
-        if (progress == 100 && !alreadySent && scripthash == "6032c38c0bc0e91e726f1e55e1832e434509001a7aed5cfd881b6ef07215e84a") {
-            let txHash = await wallet.xNavSend((await wallet.xNavReceivingAddresses(false))[0].address, 1e6, 'memo for xnav payment', spendingPassword);
-            console.log(`Transaction sent to ${(await wallet.xNavReceivingAddresses(false))[0].address}.... with hash ${txHash}`);
-            alreadySent = true;
+        if (progress == 100 && scripthash == "6032c38c0bc0e91e726f1e55e1832e434509001a7aed5cfd881b6ef07215e84a") {
+            if (!alreadySent)
+            {
+                let txHash = await wallet.xNavSend((await wallet.xNavReceivingAddresses(false))[0].address, 1e6, 'memo for xnav payment', spendingPassword);
+                console.log(`Transaction sent to ${(await wallet.xNavReceivingAddresses(false))[0].address}.... with hash ${txHash}`);
+                alreadySent = true;
+            }
+            console.log(await wallet.GetHistory())
         }
     });
 
