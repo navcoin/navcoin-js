@@ -13,6 +13,7 @@
     "bitcore-lib": "git+https://github.com/aguycalled/bitcore-lib.git",
     "bitcore-mnemonic": "git+https://github.com/aguycalled/bitcore-mnemonic.git",
     "electrum-client-js": "git+https://github.com/aguycalled/electrum-client-js.git",
+    "electrum-mnemonic": "^2.0.0",
     "nedb-async": "^0.1.6"
   }
 }
