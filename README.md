@@ -258,6 +258,17 @@ try {
 }
 ````
 
+### ImportPrivateKey(key, spendingKey)
+
+Imports the specified private key `key` to the wallet.
+
+Returns: `Promise`
+
+Example:
+
+````javascript
+await wallet.ImportPrivateKey('P123123123123123123121', 'myw4ll3tp4ssw0rd')
+````
 
 ### Sign(privateKey, message)
 
