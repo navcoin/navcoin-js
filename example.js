@@ -1,10 +1,10 @@
 const njs = require('./index');
 
-const walletFile = 'wallet.db'; // File name of the wallet database
+const walletFile = 'wallet-r.db'; // File name of the wallet database
 const password = undefined; // Password used to encrypt and open the wallet database
 const spendingPassword = undefined; // Password used to send transactions
 const mnemonic = undefined; // Mnemonic to import
-const type = undefined; // Wallet type next or navcoin-js-v1
+const type = undefined; // Wallet type next, navcoin-core or navcoin-js-v1
 const zapwallettxes = false; // Should the wallet be cleared of its history?
 const log = true; // Log to console
 
@@ -21,6 +21,11 @@ njs.wallet.Init().then(async () => {
         console.log('xNAV receiving address: '+ (await wallet.xNavReceivingAddresses(false))[0].address);
         console.log('NAV receiving address: '+ (await wallet.NavReceivingAddresses(false))[0].address);
 
+        let pk = (await wallet.NavGetPrivateKeys())[0].privateKey;
+
+        let sig = wallet.Sign(pk, "hola")
+        console.log(wallet.VerifySignature((await wallet.NavGetPrivateKeys())[0].address, "hola", sig))
+
         await wallet.Connect();
     });
 
@@ -31,8 +36,8 @@ njs.wallet.Init().then(async () => {
         if (progress == 100 && scripthash == "6032c38c0bc0e91e726f1e55e1832e434509001a7aed5cfd881b6ef07215e84a") {
             if (!alreadySent)
             {
-                let txHash = await wallet.xNavSend((await wallet.xNavReceivingAddresses(false))[0].address, 1e6, 'memo for xnav payment', spendingPassword);
-                console.log(`Transaction sent to ${(await wallet.xNavReceivingAddresses(false))[0].address}.... with hash ${txHash}`);
+                //let txHash = await wallet.xNavSend((await wallet.xNavReceivingAddresses(false))[0].address, 1e6, 'memo for xnav payment', spendingPassword);
+                //console.log(`Transaction sent to ${(await wallet.xNavReceivingAddresses(false))[0].address}.... with hash ${txHash}`);
                 alreadySent = true;
             }
             console.log(await wallet.GetHistory())
