@@ -206,51 +206,79 @@ Example:
 console.log('Wallet balance: '+ (await wallet.GetBalance()));
 ````
 
-### NavSend(destination, amount, memo, spendingPassword)
+### NavCreateTransaction(destination, amount, memo, spendingPassword, subtractFee, fee)
 
-Sends NAV in a transaction.
+Creates a transaction which sends NAV.
 
 Parameters:
 
-`destination` The address destination. Can be NAV or xNAV.
-`amount` The amount to send.
-`memo` Only applies when destination is xNAV.
-`spendingPassword` The wallet spending password.
+- `destination` The address destination. Can be NAV or xNAV.
+- `amount` The amount to send.
+- `memo` Only applies when destination is xNAV.
+- `spendingPassword` The wallet spending password.
+- `subtractFee` Should the fee be subtracted from the specified amount. Default: `true`.
+- `fee` Use a custom fee
 
-Returns: `Promise<String>` with the transaction hash or `Promise<undefined>` when the transaction failed. Use `try` to catch error.
+Returns: `Promise<Object>` with the transaction encoded in hex and the fee. Use `try` to catch error.
+
 
 Example:
 
 ````javascript
 try {
-    let hash = await wallet.NavSend("NhSoiAPHvjiTLePzW1qKy9RZr2Bkny2ZF3", 10 * 1e8, undefined, "myw4ll3tp455w0rd")
-    console.log(`transaction sent with hash ${hash}`)
+    let tx = await wallet.NavCreateTransaction("NhSoiAPHvjiTLePzW1qKy9RZr2Bkny2ZF3", 10 * 1e8, undefined, "myw4ll3tp455w0rd")
+    console.log(`transaction {tx.tx} with fee ${tx.fee}`)
     
 } catch(e)
 {
-    console.log(`error sending transaction: ${e}`);
+    console.log(`error creating transaction: ${e}`);
 }
 ````
 
-### xNavSend(destination, amount, memo, spendingPassword)
+### xNavCreateTransaction(destination, amount, memo, spendingPassword, subtractFee, fee)
 
-Sends xNAV in a transaction.
+Creates a transaction which sends xNAV.
 
 Parameters:
 
-`destination` The address destination. Can be NAV or xNAV.
-`amount` The amount to send.
-`memo` Only applies when destination is xNAV.
-`spendingPassword` The wallet spending password.
+- `destination` The address destination. Can be NAV or xNAV.
+- `amount` The amount to send.
+- `memo` Only applies when destination is xNAV.
+- `spendingPassword` The wallet spending password.
+- `subtractFee` Should the fee be subtracted from the specified amount. Default: `true`.
 
-Returns: `Promise<String>` with the transaction hash or `Promise<undefined>` when the transaction failed. Use `try` to catch error.
+Returns: `Promise<Object>` with the transaction encoded in hex and the fee. Use `try` to catch error.
 
 Example:
 
 ````javascript
 try {
-    let hash = await wallet.xNavSend("NhSoiAPHvjiTLePzW1qKy9RZr2Bkny2ZF3", 10 * 1e8, undefined, "myw4ll3tp455w0rd")
-    console.log(`transaction sent with hash ${hash}`)
+    let hash = await wallet.xNavCreateTransaction("NhSoiAPHvjiTLePzW1qKy9RZr2Bkny2ZF3", 10 * 1e8, undefined, "myw4ll3tp455w0rd")
+    console.log(`transaction {tx.tx} with fee ${tx.fee}`)
+    
+} catch(e)
+{
+    console.log(`error creating transaction: ${e}`);
+}
+````
+
+### SendTransaction(tx)
+
+Broadcasts a transaction.
+
+Parameters:
+
+- `tx` The hex encoded transaction.
+
+Returns: `Promise<String>` with the transaction hash or `Promise<void>` if transaction failed. Use `try` to catch error.
+
+
+Example:
+
+````javascript
+try {
+    let hash = await wallet.SendTransaction(tx)
+    console.log(`transaction sent ${hash}`)
     
 } catch(e)
 {
