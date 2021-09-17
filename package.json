@@ -17,6 +17,7 @@
     "electrum-mnemonic": "^2.0.0",
     "localforage": "^1.9.0",
     "lodash": "^3.10.1",
-    "nedb-async": "^0.1.6"
+    "nedb-async": "^0.1.6",
+    "queue": "^6.0.2"
   }
 }
