@@ -13,11 +13,17 @@
     "bitcore-lib": "https://github.com/aguycalled/bitcore-lib",
     "bitcore-message": "https://github.com/aguycalled/bitcore-message",
     "bitcore-mnemonic": "git+https://github.com/aguycalled/bitcore-mnemonic.git",
+    "crypto-pouch": "^4.0.1",
     "electrum-client-js": "git+https://github.com/aguycalled/electrum-client-js.git",
     "electrum-mnemonic": "^2.0.0",
     "localforage": "^1.9.0",
     "lodash": "^3.10.1",
     "nedb-async": "^0.1.6",
+    "pouchdb": "^7.2.2",
+    "pouchdb-adapter-memory": "^7.2.2",
+    "pouchdb-all-dbs": "^1.1.1",
+    "pouchdb-find": "^7.2.2",
+    "pouchdb-upsert": "^2.2.0",
     "queue": "^6.0.2"
   }
 }
