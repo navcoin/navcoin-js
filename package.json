@@ -29,5 +29,9 @@
     "pouchdb-all-dbs": "^1.1.1",
     "queue": "^6.0.2",
     "websql": "^1.0.0"
+  },
+  "devDependencies": {
+    "eslint": "^7.32.0",
+    "prettier": "2.4.1"
   }
 }
