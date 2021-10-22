@@ -11,8 +11,8 @@
   "license": "ISC",
   "dependencies": {
     "async-mutex": "^0.3.2",
-    "bitcore-lib": "https://github.com/aguycalled/bitcore-lib",
-    "bitcore-message": "https://github.com/aguycalled/bitcore-message",
+    "bitcore-lib": "git+https://github.com/aguycalled/bitcore-lib.git",
+    "bitcore-message": "git+https://github.com/aguycalled/bitcore-message.git",
     "bitcore-mnemonic": "git+https://github.com/aguycalled/bitcore-mnemonic.git",
     "crypto-pouch": "^4.0.1",
     "dexie": "^3.0.3",

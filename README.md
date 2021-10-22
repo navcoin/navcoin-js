@@ -41,8 +41,9 @@ Parameters: `parameters` object:
 | type             | Mnemonic type. Options: `navcoin-js-v1` (this library), `navcash`, `next`, `navcoin-core` or `navpay`                                    | navcoin-js-v1 |
 | password         | Password used to encrypt the wallet data base. User will need to specify it every time the wallet is loaded.                             | undefined     |
 | spendingPassword | When a new wallet is created, sets the password used to encrypt the wallet private keys. User will need to specify it every time it spends coins or wants to see a private key. | undefined     |
-| zapwallettxes    | Wipe up all wallet entries and resync if set to `true`                                                                                   | false         |
-| log              | Prints extra log to the console.                                                                                                         | false         |
+| zapwallettxes    | Wipe all wallet entries and resync if set to `true`                                                                                   | false         |
+| network          | Which network should it connect to. Options: `mainnet` or `testnet` | `mainnet` |
+| log              | Prints log to the console.                                                                                                         | false         |
 
 Returns: `Wallet object`
 
@@ -87,42 +88,70 @@ await njs.wallet.RemoveWallet("wallet.db");
 
 ## Wallet methods
 
-### Load()
+### Load(bootstrap)
 
 Loads the wallet.
 
-Parameters: `none`
+Parameters: `parameters` object:
+
+| Key        | Description                                                                                                                              | Default value |
+|------------------|------------------------------------------------------------------------------------------------------------------------------------------|---------------|
+| bootstrap       | Object with a cached history of xNAV transaction keys, meant to speed sync speed.                                                                         |  undefined    |
 
 Returns: `Promise`
 
 Example:
 
 ```javascript
-await wallet.Load();
+await wallet.Load({
+  bootstrap: njs.wallet.xNavBootstrap
+});
 ````
 
-Emits: `loaded` when wallet has been loaded
+### AddNode(host, port, proto)
 
-### Connect(parameters)
+Adds an Electrum server to the nodes list. This is currently not persisted.
+
+Parameters:
+
+| Parameter        | Description                                                       |
+|------------------|-------------------------------------------------------------------|
+| host             | Electrum server host.                                             |
+| port             | Electrum server port.                                             |
+| proto            | Electrum server protocol.                                         |
+
+Returns: `void`
+
+Example:
+````javascript
+wallet.AddNode('electrum8.nav.community', 40004, 'wss')
+````
+
+### ClearNodeList()
+
+Clears the Electrum server list. Not persisted.
+
+Parameters: `none`
+
+Returns: `void`
+
+Example:
+````javascript
+wallet.ClearNodeList()
+````
+
+### Connect()
 
 Connects to the Navcoin network.
 
-Parameters: `parameters` object:
-
-| key        | Description                                                                                                                              | Default value |
-|------------------|------------------------------------------------------------------------------------------------------------------------------------------|---------------|
-| host             | Electrum server host.                                             |  electrum4.nav.community    |
-| port             | Electrum server port.                                             | 40004     |
-| proto            | Electrum server protocol.                                         | wss |
+Parameters: `none`
 
 Returns: `promise`
 
 Example:
 ````javascript
-await wallet.Connect({host: 'electrum1.nav.community'})
+await wallet.Connect()
 ````
-
-Emits: 'connected' when connection has been established
 
 ### Disconnect()
 
@@ -196,7 +225,7 @@ console.log('Wallet history: '+ (await wallet.GetHistory()));
 
 ### GetBalance()
 
-Returns the current NAV and xNAV balance. Only needed to update when events `new_tx`, `remove_tx` or `sync_finished`.
+Returns the current balances. Only needed to update when events `new_tx`, `remove_tx` or `sync_finished`.
 
 Returns: `Promise<Object>`
 
@@ -206,7 +235,7 @@ Example:
 console.log('Wallet balance: '+ (await wallet.GetBalance()));
 ````
 
-### NavCreateTransaction(destination, amount, memo, spendingPassword, subtractFee, fee)
+### NavCreateTransaction(destination, amount, memo, spendingPassword, subtractFee, fee, from)
 
 Creates a transaction which sends NAV.
 
@@ -214,20 +243,42 @@ Parameters:
 
 - `destination` The address destination. Can be NAV or xNAV.
 - `amount` The amount to send.
-- `memo` Only applies when destination is xNAV.
+- `memo` Only applies when destination is an xNAV address.
 - `spendingPassword` The wallet spending password.
 - `subtractFee` Should the fee be subtracted from the specified amount. Default: `true`.
 - `fee` Use a custom fee
+- `type` Select which coin types are selected, yse `0x1` for non staking funds, `0x2` for staked funds, `0x3` for both. Default: `0x3`
 
 Returns: `Promise<Object>` with the transaction encoded in hex and the fee. Use `try` to catch error.
 
 
-Example:
+Example, normal NAV to NAV transaction:
 
 ````javascript
 try {
     let tx = await wallet.NavCreateTransaction("NhSoiAPHvjiTLePzW1qKy9RZr2Bkny2ZF3", 10 * 1e8, undefined, "myw4ll3tp455w0rd")
-    console.log(`transaction {tx.tx} with fee ${tx.fee}`)
+    console.log(`transaction created with fee ${tx.fee}`)
+    
+} catch(e)
+{
+    console.log(`error creating transaction: ${e}`);
+}
+````
+
+Example 2, moving coins out of staking:
+
+````javascript
+try {
+    let tx = await wallet.NavCreateTransaction(
+      (await wallet.NavReceivingAddresses(true))[0].address,
+      (await wallet.GetBalance()).staked.confirmed,
+      undefined,
+      "myw4ll3tp455w0rd",
+      true,
+      100000,
+      0x2
+    )
+    console.log(`transaction created with fee ${tx.fee}`)
     
 } catch(e)
 {
@@ -246,6 +297,7 @@ Parameters:
 - `memo` Only applies when destination is xNAV.
 - `spendingPassword` The wallet spending password.
 - `subtractFee` Should the fee be subtracted from the specified amount. Default: `true`.
+- `fee` Use a custom fee
 
 Returns: `Promise<Object>` with the transaction encoded in hex and the fee. Use `try` to catch error.
 
@@ -254,7 +306,7 @@ Example:
 ````javascript
 try {
     let hash = await wallet.xNavCreateTransaction("NhSoiAPHvjiTLePzW1qKy9RZr2Bkny2ZF3", 10 * 1e8, undefined, "myw4ll3tp455w0rd")
-    console.log(`transaction {tx.tx} with fee ${tx.fee}`)
+    console.log(`transaction with fee ${tx.fee}`)
     
 } catch(e)
 {
@@ -268,21 +320,17 @@ Broadcasts a transaction.
 
 Parameters:
 
-- `tx` The hex encoded transaction.
+- `tx` The hex encoded transaction(s).
 
-Returns: `Promise<String>` with the transaction hash or `Promise<void>` if transaction failed. Use `try` to catch error.
+Returns: `Promise<Object>` 
 
 
 Example:
 
 ````javascript
 try {
-    let hash = await wallet.SendTransaction(tx)
-    console.log(`transaction sent ${hash}`)
-    
-} catch(e)
-{
-    console.log(`error sending transaction: ${e}`);
+    let tx = await wallet.SendTransaction(tx)
+    console.log(`transaction sent with hashes ${tx.hashes} and error ${tx.error}`)
 }
 ````
 
@@ -305,7 +353,6 @@ Signs a message with the specified private key.
 ### VerifySignature(address, message, signature)
 
 Verifies a signed message.
-
 
 ## Events
 
@@ -338,36 +385,38 @@ wallet.on('loaded', async () => {
 
 ### connected
 
-Emitted when a connection has been established to the electrum server.
+Emitted when a connection has been established to an electrum server.
 
 Example:
 
 ````javascript
-wallet.on('connected', () => console.log('connected. waiting for sync'));
+wallet.on('connected', (server) => console.log(`connected to ${server}. waiting for sync`));
 ````
 
-### sync_started
+### no_servers_available
 
-Emitted when the wallet started synchronizing the transaction history of a specific address or script.
+Emitted when none of the servers is available
 
-````javascript
-wallet.on('sync_started', (scripthash) => console.log('started syncing '+scripthash));
-````
-
-### sync_status
-
-Emitted to update on the sync progress of a specific scripthash
+Example:
 
 ````javascript
-wallet.on('sync_status', (progress, scripthash) => console.log('script hash '+scripthash+' sync status: '+progress+'%'));
+wallet.on('no_servers_available', () => console.log(`none of the servers is available`));
 ````
 
 ### sync_finished
 
-Emitted when the wallet finishes synchronizing the transaction history of a specific address or script.
+Emitted when the wallet finished synchronizing the transaction history.
 
 ````javascript
-wallet.on('sync_finished', (scripthash) => console.log('finished syncing '+scripthash));
+wallet.on('sync_finished', (scripthash) => console.log('sync complete'));
+````
+
+### sync_status
+
+Emitted to update the sync progress.
+
+````javascript
+wallet.on('sync_status', (progress, pending, total) => console.log(`sync status: ${progress}%`));
 ````
 
 ### new_tx
@@ -381,12 +430,26 @@ wallet.on('new_tx', async (list) => {
 });
 ````
 
-### remove_tx
+### db_load_error
 
-Emitted when a previously announced transaction is not part of the blockchain anymore.
+Emitted when the wallet database could not be loaded.
 
 ````javascript
-wallet.on('remove_tx', async (txid) => {
-    console.log(`Removed tx transaction ${txid}`)
-});
+wallet.on('db_load_error', (error) => console.log(`error loading database: ${progress}%`));
+````
+
+### db_open
+
+Emitted when the wallet database has been opened.
+
+````javascript
+wallet.on('db_open', () => console.log(`database is now open`));
+````
+
+### db_closed
+
+Emitted when the wallet database has been closed.
+
+````javascript
+wallet.on('db_closed', () => console.log(`database is now closed`));
 ````
