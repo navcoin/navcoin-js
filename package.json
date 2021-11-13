@@ -1,6 +1,6 @@
 {
   "name": "navcoin-js",
-  "version": "1.0.12",
+  "version": "1.0.13",
   "description": "Navcoin Javascript Library",
   "main": "index.js",
   "scripts": {
@@ -10,7 +10,7 @@
   "author": "alex@nav.community",
   "license": "ISC",
   "dependencies": {
-    "@aguycalled/bitcore-lib": "^0.15.10",
+    "@aguycalled/bitcore-lib": "^0.15.13",
     "@chainsafe/bls-hd-key": "^0.2.1",
     "async-mutex": "^0.3.2",
     "bitcore-message": "git+https://github.com/aguycalled/bitcore-message.git",
