@@ -25,7 +25,7 @@ Example:
 ````javascript
 njs.wallet.Init().then(async () => {
     console.log(`library initialised`);
-}
+})
 ````
 
 ### wallet.WalletFile(parameters)
@@ -88,7 +88,7 @@ await njs.wallet.RemoveWallet("wallet.db");
 
 ## Wallet methods
 
-### Load(bootstrap)
+### Load(parameters)
 
 Loads the wallet.
 
@@ -331,6 +331,10 @@ Example:
 try {
     let tx = await wallet.SendTransaction(tx)
     console.log(`transaction sent with hashes ${tx.hashes} and error ${tx.error}`)
+}
+catch(e)
+{
+    console.log(`error sending: ${e}`)
 }
 ````
 
