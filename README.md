@@ -12,6 +12,10 @@ const njs = require('navcoin-js');
 
 ## Static methods.
 
+### wallet.bitcore
+
+Exposes low level methods from `@aguycalled/bitcore-lib`.
+
 ### wallet.Init()
 
 Required before making any operation with the wallet. Initialises the cryptographic modules.
