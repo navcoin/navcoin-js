@@ -247,7 +247,8 @@ Parameters:
 - `spendingPassword` The wallet spending password.
 - `subtractFee` Should the fee be subtracted from the specified amount. Default: `true`.
 - `fee` Use a custom fee
-- `type` Select which coin types are selected, yse `0x1` for non staking funds, `0x2` for staked funds, `0x3` for both. Default: `0x3`
+- `type` Select which coin types are selected, use `0x1` for non staking funds, `0x2` for staked funds, `0x3` for both. Default: `0x1`
+- `address' Spend coins only from this address.
 
 Returns: `Promise<Object>` with the transaction encoded in hex and the fee. Use `try` to catch error.
 
