@@ -68,7 +68,7 @@ Returns: `Promise<Array>`
 Example:
 
 ````javascript
-const listWallets = await njs.wallet.ListWallets();
+const listWallets = await njs.wallet.WalletFile.ListWallets();
 
 console.log("List of wallets:\n");
 for (var wallet in listWallets) {
