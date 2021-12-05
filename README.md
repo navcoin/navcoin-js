@@ -171,7 +171,7 @@ Example:
 wallet.Disconnect()
 ```
 
-### NavReceivingAddresses()
+### GetNavReceivingAddresses()
 
 Returns the list of addresses to receive NAV.
 
@@ -180,10 +180,10 @@ Returns: `Promise<Array>`
 Example:
 
 ````javascript
-console.log('NAV receiving address: '+ (await wallet.NavReceivingAddresses(false))[0].address);
+console.log('NAV receiving address: '+ (await wallet.GetNavReceivingAddresses(false))[0].address);
 ````
 
-### xNavReceivingAddresses()
+### GetxNavReceivingAddresses()
 
 Returns the list of addresses to receive xNAV.
 
@@ -192,7 +192,7 @@ Returns: `Promise<Array>`
 Example:
 
 ````javascript
-console.log('xNAV receiving address: '+ (await wallet.xNavReceivingAddresses(false))[0].address);
+console.log('xNAV receiving address: '+ (await wallet.GetxNavReceivingAddresses(false))[0].address);
 ````
 
 
