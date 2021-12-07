@@ -387,6 +387,88 @@ Signs a message with the specified private key.
 
 Verifies a signed message.
 
+### ResolveName(name)
+
+Resolves a dotNav name.
+
+Returns: `Promise<Object>` with the associated data to the name. Use `try` to catch error.
+
+Example:
+
+````javascript
+try {
+    let data = await wallet.ResolveName("myname.nav")
+    console.log(`myname.nav is: ${JSON.stringify(data, undefined, 4)}`)
+}
+catch(e)
+{
+    console.log(`error resolving name: ${e}`);
+}
+````
+
+### RegisterName(name, spendingPassword)
+
+Registers a dotNav name.
+
+Returns: `Promise<Object>` with the transaction encoded in hex and the fee. Use `try` to catch error.
+
+Example:
+
+````javascript
+try {
+    let hash = await wallet.RegisterName("myname.nav", "myw4ll3tp455w0rd")
+    console.log(`transaction with fee ${tx.fee}`)
+}
+catch(e)
+{
+    console.log(`error creating transaction: ${e}`);
+}
+````
+
+### UpdateName(name, subdomain, key, value, spendingPassword)
+
+Updates a dotNav name.
+
+Returns: `Promise<Object>` with the transaction encoded in hex and the fee. Use `try` to catch error.
+
+Example:
+
+````javascript
+try {
+    let hash = await wallet.UpdateName("myname.nav", "www", "ip", "127.0.0.1", "myw4ll3tp455w0rd")
+    console.log(`transaction with fee ${tx.fee}`)
+}
+catch(e)
+{
+    console.log(`error creating transaction: ${e}`);
+}
+````
+
+### GetMyNames()
+
+Returns the list of dotNav names owned by the wallet.
+
+Example:
+
+````javascript
+try {
+    let names = await wallet.GetMyNames()
+    console.log(`my names are: ${JSON.stringify(names, undefiend, 4)}`)
+}
+catch(e)
+{
+    console.log(`error getting my names: ${e}`);
+}
+````
+
+### IsValidDotNavName(name)
+
+Returns whether a string is a valid dotNav name.
+
+### IsValidDotNavKey(name)
+
+Returns whether a string is a valid dotNav key.
+
 ## Events
 
 ### new_mnemonic
@@ -460,6 +542,16 @@ Emitted when a new transaction affecting the wallet has been received.
 wallet.on('new_tx', async (list) => {
     console.log(`Received transaction ${JSON.stringify(list)}`)
     console.log(`Balance ${JSON.stringify(await wallet.GetBalance())}`)
+});
+````
+
+### new_name
+
+Emitted when a new dotNav name owned by the wallet has been seen.
+
+````javascript
+wallet.on('new_name', async (name) => {
+    console.log(`Seen dotNav name ${name}`)
 });
 ````
 
