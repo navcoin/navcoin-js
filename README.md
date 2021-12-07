@@ -291,7 +291,7 @@ try {
 }
 ````
 
-### xNavCreateTransaction(destination, amount, memo, spendingPassword, subtractFee, fee)
+### xNavCreateTransaction(destination, amount, memo, spendingPassword, subtractFee)
 
 Creates a transaction which sends xNAV.
 
@@ -302,7 +302,6 @@ Parameters:
 - `memo` Only applies when destination is xNAV.
 - `spendingPassword` The wallet spending password.
 - `subtractFee` Should the fee be subtracted from the specified amount. Default: `true`.
-- `fee` Use a custom fee
 
 Returns: `Promise<Object>` with the transaction encoded in hex and the fee. Use `try` to catch error.
 
@@ -314,6 +313,31 @@ try {
     console.log(`transaction with fee ${tx.fee}`)
     
 } catch(e)
+{
+    console.log(`error creating transaction: ${e}`);
+}
+````
+
+### xNavCreateTransactionMultiple(destination, spendingPassword, subtractFee)
+
+Creates a transaction which sends xNAV to mulple destinations.
+
+Parameters:
+
+- `destinations` An array of objects with the destinations.
+- `spendingPassword` The wallet spending password.
+- `subtractFee` Should the fee be subtracted from the specified amount. Default: `true`.
+
+Returns: `Promise<Object>` with the transaction encoded in hex and the fee. Use `try` to catch error.
+
+Example:
+
+````javascript
+try {
+    let hash = await wallet.xNavCreateTransactionMultiple([{dest:"NhSoiAPHvjiTLePzW1qKy9RZr2Bkny2ZF3", amount: 10 * 1e8, memo: undefined}], "myw4ll3tp455w0rd")
+    console.log(`transaction with fee ${tx.fee}`)
+}
+catch(e)
 {
     console.log(`error creating transaction: ${e}`);
 }
