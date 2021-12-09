@@ -343,6 +343,34 @@ catch(e)
 }
 ````
 
+### tokenCreateTransaction(destination, amount, memo, spendingPassword, subtractFee, tokenId, nftId)
+
+Creates a transaction which sends a private token or nft..
+
+Parameters:
+
+- `destination` The address destination. Can be NAV or xNAV.
+- `amount` The amount to send. Should be 1 if `tokenId` is a NFT.
+- `memo` Only applies when destination is xNAV.
+- `spendingPassword` The wallet spending password.
+- `tokenId` The token id.
+- `tokenNftId` The NFT id, if `tokenId` is a NFT.
+
+Returns: `Promise<Object>` with the transaction encoded in hex and the fee. Use `try` to catch error.
+
+Example:
+
+````javascript
+try {
+    let hash = await wallet.tokenCreateTransaction("NhSoiAPHvjiTLePzW1qKy9RZr2Bkny2ZF3", 10 * 1e8, undefined, "myw4ll3tp455w0rd", "8b130a7e21b7da3a8897205d7735dc5434c0019a35f3a5dec475fbc2cbd4f56a")
+    console.log(`transaction with fee ${tx.fee}`)
+    
+} catch(e)
+{
+    console.log(`error creating transaction: ${e}`);
+}
+````
+
 ### SendTransaction(tx)
 
 Broadcasts a transaction.
@@ -468,6 +496,82 @@ Returns whether a string is a valid dotNav name.
 ### IsValidDotNavKey(name)
 
 Returns whether a string is a valid dotNav key.
+
+### CreateToken(name, code, max_sypplu, spending_password)
+
+Creates a private token with name `name`, currency code `code` and max supply `max_supply`.
+
+Returns: `Promise<Object>` with the transaction encoded in hex and the fee. Use `try` to catch error.
+
+Example:
+
+````javascript
+try {
+    let hash = await wallet.CreateToken("Baby NAV", "BNAV", 1000*1e8, "myw4ll3tp455w0rd")
+    console.log(`cost is fee ${tx.fee}`)
+}
+catch(e)
+{
+    console.log(`error creating transaction: ${e}`);
+}
+````
+
+### CreateNft(name, scheme, max_sypplu, spending_password)
+
+Creates a NFT with name `name`, scheme `scheme` and max supply `max_supply`.
+
+Returns: `Promise<Object>` with the transaction encoded in hex and the fee. Use `try` to catch error.
+
+Example:
+
+````javascript
+try {
+    let hash = await wallet.CreateNft("Art Collection", "{'url':'resource'}", 1000, "myw4ll3tp455w0rd")
+    console.log(`cost is fee ${tx.fee}`)
+}
+catch(e)
+{
+    console.log(`error creating transaction: ${e}`);
+}
+````
+
+### MintToken(id, dest, amount, spending_password)
+
+Mints `amount` tokens of token `id` to address `dest`.
+
+Returns: `Promise<Object>` with the transaction encoded in hex and the fee. Use `try` to catch error.
+
+Example:
+
+````javascript
+try {
+    let hash = await wallet.MintToken("50c89fd9661dfeca262dbc9d796e8b4c74987b9c5a37a87254ba1a940fbfb382", "xNTvzWPMSAJYUMRTaqGEepADBPRs3CQ3JJVUWJU8JEUm5xBCdhrBGiYbozkDNbWuzHpCuSFT8fHv9NLthb7ga3vxMfCrSjH7HTQRnbtPmaGHJ9uekiiir1foLfMNQ9CAXJ9CRTgedbE", 1*1e8, "myw4ll3tp455w0rd")
+    console.log(`cost is fee ${tx.fee}`)
+}
+catch(e)
+{
+    console.log(`error creating transaction: ${e}`);
+}
+````
+
+### MintNft(id, nftId, dest, scheme, spending_password)
+
+Mints 1 NFT of `id` with index `nftId` and scheme `scheme` to address `dest`.
+
+Returns: `Promise<Object>` with the transaction encoded in hex and the fee. Use `try` to catch error.
+
+Example:
+
+````javascript
+try {
+    let hash = await wallet.MintNft("50c89fd9661dfeca262dbc9d796e8b4c74987b9c5a37a87254ba1a940fbfb382", 0, "xNTvzWPMSAJYUMRTaqGEepADBPRs3CQ3JJVUWJU8JEUm5xBCdhrBGiYbozkDNbWuzHpCuSFT8fHv9NLthb7ga3vxMfCrSjH7HTQRnbtPmaGHJ9uekiiir1foLfMNQ9CAXJ9CRTgedbE", "{'resource':'https://art.net/image.jpeg'}", "myw4ll3tp455w0rd")
+    console.log(`cost is fee ${tx.fee}`)
+}
+catch(e)
+{
+    console.log(`error creating transaction: ${e}`);
+}
+````
 
 ## Events
 
