@@ -57,7 +57,7 @@ Example:
 const wallet = new njs.wallet.WalletFile({file: 'wallet.db', password: 'myw4ll3tp455w0rd'})
 ````
 
-### wallet.ListWallets()
+### wallet.WalletFile.ListWallets()
 
 Lists the names of the already created wallets.
 
@@ -68,7 +68,7 @@ Returns: `Promise<Array>`
 Example:
 
 ````javascript
-const listWallets = await njs.wallet.ListWallets();
+const listWallets = await njs.wallet.WalletFile.ListWallets();
 
 console.log("List of wallets:\n");
 for (var wallet in listWallets) {
