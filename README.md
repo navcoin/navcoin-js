@@ -1,6 +1,6 @@
 # navcoin-js
 
-Navcoin Javascript wallet library. Use Node >= 15.
+Navcoin Javascript wallet library. Tested with Node v15.14.0 and NPM v7.7.6.
 
 Minimal working examples in `example.js` and `web/`
 
