@@ -76,7 +76,7 @@ for (var wallet in listWallets) {
 }
 ````
 
-### wallet.RemoveWallet(name)
+### wallet.WalletFile.RemoveWallet(name)
 
 Remove the wallet with the specified name.
 
@@ -87,7 +87,7 @@ Returns: `Promise`
 Example:
 
 ```javascript
-await njs.wallet.RemoveWallet("wallet.db");
+await njs.wallet.WalletFile.RemoveWallet("wallet.db");
 ````
 
 ## Wallet methods
