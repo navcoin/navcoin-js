@@ -1,6 +1,6 @@
 {
   "name": "navcoin-js",
-  "version": "1.0.73",
+  "version": "1.0.75",
   "description": "Navcoin Javascript Library",
   "main": "index.js",
   "scripts": {
@@ -14,8 +14,8 @@
     "@aguycalled/electrum-client-js": "^0.1.2",
     "@chainsafe/bls-hd-key": "^0.2.1",
     "async-mutex": "^0.3.2",
-    "bitcore-message": "git+https://github.com/aguycalled/bitcore-message.git",
-    "bitcore-mnemonic": "git+https://github.com/aguycalled/bitcore-mnemonic.git",
+    "bitcore-message": "https://github.com/aguycalled/bitcore-message.git",
+    "bitcore-mnemonic": "https://github.com/aguycalled/bitcore-mnemonic.git",
     "crypto-pouch": "^4.0.1",
     "dexie": "^3.0.3",
     "dexie-encrypted": "^2.0.0",
