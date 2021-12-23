@@ -481,7 +481,7 @@ Example:
 ````javascript
 try {
     let names = await wallet.GetMyNames()
-    console.log(`my names are: ${JSON.stringify(names, undefiend, 4)}`)
+    console.log(`my names are: ${JSON.stringify(names, undefined, 4)}`)
 }
 catch(e)
 {
@@ -570,6 +570,23 @@ try {
 catch(e)
 {
     console.log(`error creating transaction: ${e}`);
+}
+````
+
+### GetMyTokens(spendingPassword)
+
+Returns the list of tokens owned by the wallet.
+
+Example:
+
+````javascript
+try {
+    let tokens = await wallet.GetMyTokens("my password")
+    console.log(`my tokens are: ${JSON.stringify(tokens, undefined, 4)}`)
+}
+catch(e)
+{
+    console.log(`error getting my tokens: ${e}`);
 }
 ````
 
