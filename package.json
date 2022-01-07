@@ -1,6 +1,6 @@
 {
   "name": "navcoin-js",
-  "version": "1.0.80",
+  "version": "1.0.81",
   "description": "Navcoin Javascript Library",
   "main": "index.js",
   "scripts": {
@@ -10,17 +10,18 @@
   "author": "alex@nav.community",
   "license": "ISC",
   "dependencies": {
-    "@aguycalled/bitcore-lib": "^0.15.35",
+    "@aguycalled/bitcore-lib": "^0.15.38",
+    "@aguycalled/dexie-encrypted": "^2.0.3",
     "@aguycalled/electrum-client-js": "^0.1.2",
     "@chainsafe/bls-hd-key": "^0.2.1",
     "async-mutex": "^0.3.2",
     "bitcore-message": "https://github.com/aguycalled/bitcore-message.git",
     "bitcore-mnemonic": "https://github.com/aguycalled/bitcore-mnemonic.git",
     "crypto-pouch": "^4.0.1",
-    "dexie": "^3.0.3",
-    "dexie-encrypted": "^2.0.0",
+    "dexie": "^3.2.1-beta.2",
     "electrum-mnemonic": "^2.0.0",
     "fake-indexeddb": "^3.1.7",
+    "indexeddbshim": "^8.0.0",
     "localforage": "^1.9.0",
     "lodash": "^3.10.1",
     "nedb-async": "^0.1.6",
@@ -29,10 +30,13 @@
     "pouchdb-adapter-websql": "^7.0.0",
     "pouchdb-all-dbs": "^1.1.1",
     "queue": "^6.0.2",
+    "requirejs": "^2.3.6",
     "websql": "^1.0.0"
   },
   "devDependencies": {
     "eslint": "^7.32.0",
     "prettier": "2.4.1"
-  }
+  },
+  "type": "module",
+  "sourceType": "module"
 }

@@ -343,13 +343,13 @@ catch(e)
 }
 ````
 
-### tokenCreateTransaction(destination, amount, memo, spendingPassword, subtractFee, tokenId, nftId)
+### tokenCreateTransaction(destination, amount, memo, spendingPassword, tokenId, nftId)
 
 Creates a transaction which sends a private token or nft..
 
 Parameters:
 
-- `destination` The address destination. Can be NAV or xNAV.
+- `destination` The address destination. Must be xNAV.
 - `amount` The amount to send. Should be 1 if `tokenId` is a NFT.
 - `memo` Only applies when destination is xNAV.
 - `spendingPassword` The wallet spending password.

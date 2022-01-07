@@ -1,5 +1,9 @@
-require("fake-indexeddb/auto");
-const njs = require("./index");
+global.window = global;
+const setGlobalVars = (await import("indexeddbshim")).default;
+setGlobalVars(null, { checkOrigin: false });
+
+import * as njs from "./index.js";
+import * as repl from "repl";
 
 const walletFile = undefined; // File name of the wallet database, persistence using dexie db backend only works on the browser
 const password = undefined; // Password used to encrypt and open the wallet database
@@ -8,10 +12,14 @@ const mnemonic = undefined; // Mnemonic to import 'problem shrimp bottom mouse c
 const type = undefined; // Wallet type next, navcoin-core or navcoin-js-v1
 const zapwallettxes = false; // Should the wallet be cleared of its history?
 const log = true; // Log to console
-const network = "mainnet";
+const network = "testnet";
+
+let wallet;
+
+const prompt = repl.start("> ");
 
 njs.wallet.Init().then(async () => {
-  const wallet = new njs.wallet.WalletFile({
+  wallet = new njs.wallet.WalletFile({
     file: walletFile,
     mnemonic: mnemonic,
     type: type,
@@ -21,6 +29,8 @@ njs.wallet.Init().then(async () => {
     log: log,
     network: network,
   });
+
+  prompt.context.wallet = wallet;
 
   wallet.on("new_mnemonic", (mnemonic) =>
     console.log(`wallet created with mnemonic ${mnemonic} - please back it up!`)
@@ -47,8 +57,14 @@ njs.wallet.Init().then(async () => {
     console.log(`Sync ${progress}%`);
   });
 
+  wallet.on("db_load_error", async (err) => {
+    console.log(`Error Load DB: ${err}`);
+    process.exit(1);
+  });
+
   wallet.on("sync_finished", async () => {
     console.log("sync_finished");
+    console.log(`Balance ${JSON.stringify(await wallet.GetBalance())}`);
   });
 
   wallet.on("new_tx", async (list) => {
