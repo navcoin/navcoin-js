@@ -1,6 +1,3 @@
-import { readFile } from "fs/promises";
-const json = JSON.parse(
-  await readFile(new URL("./package.json", import.meta.url))
-);
-export var version = "v" + json.version;
+import { default as v } from "project-version";
+export var version = "v" + v;
 export * as wallet from "./lib/wallet.js";
