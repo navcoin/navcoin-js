@@ -1,9 +1,12 @@
 {
   "name": "navcoin-js",
-  "version": "1.0.85",
+  "version": "1.0.86",
   "description": "Navcoin Javascript Library",
-  "main": "index.js",
+  "main": "./dist/index.js",
   "scripts": {
+    "prepublish": "npm run build",
+    "clean": "rm -rf dist && mkdir dist",
+    "build": "babel -d ./dist ./src -s",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -11,8 +14,9 @@
   "license": "ISC",
   "dependencies": {
     "@aguycalled/bitcore-lib": "^0.15.38",
-    "@aguycalled/dexie-encrypted": "^2.0.3",
+    "@aguycalled/dexie-encrypted": "^2.0.4",
     "@aguycalled/electrum-client-js": "^0.1.2",
+    "@babel/runtime": "^7.16.7",
     "@chainsafe/bls-hd-key": "^0.2.1",
     "async-mutex": "^0.3.2",
     "bitcore-message": "https://github.com/aguycalled/bitcore-message.git",
@@ -33,9 +37,11 @@
     "websql": "^1.0.0"
   },
   "devDependencies": {
+    "@babel/cli": "^7.16.7",
+    "@babel/core": "^7.16.7",
+    "@babel/plugin-transform-runtime": "^7.16.7",
+    "@babel/preset-env": "^7.16.7",
     "eslint": "^7.32.0",
     "prettier": "2.4.1"
-  },
-  "type": "module",
-  "sourceType": "module"
+  }
 }
