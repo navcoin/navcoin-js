@@ -1,3 +1,2 @@
-import { default as v } from "project-version";
-export var version = "v" + v;
+export var version = "v0.1.84";
 export * as wallet from "./lib/wallet.js";

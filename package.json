@@ -1,6 +1,6 @@
 {
   "name": "navcoin-js",
-  "version": "1.0.83",
+  "version": "1.0.84",
   "description": "Navcoin Javascript Library",
   "main": "index.js",
   "scripts": {
@@ -29,7 +29,6 @@
     "pouchdb-adapter-memory": "^7.2.2",
     "pouchdb-adapter-websql": "^7.0.0",
     "pouchdb-all-dbs": "^1.1.1",
-    "project-version": "^2.0.0",
     "queue": "^6.0.2",
     "websql": "^1.0.0"
   },
