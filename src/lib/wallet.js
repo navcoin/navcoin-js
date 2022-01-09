@@ -61,7 +61,12 @@ export class WalletFile extends events.EventEmitter {
 
     this.network = options.network || "mainnet";
 
-    this.db = new Db.default(options.file, secret);
+    this.db = new Db.default(
+      options.file,
+      secret,
+      options.indexedDB,
+      options.IDBKeyRange
+    );
 
     this.db.on("db_load_error", (e) => {
       this.emit("db_load_error", e);

@@ -8,7 +8,7 @@ import { applyEncryptionMiddleware } from "@aguycalled/dexie-encrypted";
 const algorithm = "aes-256-cbc";
 
 export default class Db extends events.EventEmitter {
-  constructor(filename, secret) {
+  constructor(filename, secret, indexedDB, IDBKeyRange) {
     super();
 
     let key = new Buffer(
@@ -22,8 +22,8 @@ export default class Db extends events.EventEmitter {
 
     try {
       this.db = new Dexie(filename, {
-        indexedDB: window.indexedDB,
-        IDBKeyRange: window.IDBKeyRange,
+        indexedDB: indexedDB || window.indexedDB,
+        IDBKeyRange: IDBKeyRange || window.IDBKeyRange,
       });
 
       applyEncryptionMiddleware(this.db, key, {}, async (db) => {
