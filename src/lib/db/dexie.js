@@ -21,6 +21,9 @@ export default class Db extends events.EventEmitter {
     );
 
     try {
+      Dexie.dependencies.indexedDB = indexedDB || window.indexedDB;
+      Dexie.dependencies.IDBKeyRange = IDBKeyRange || window.IDBKeyRange;
+
       this.db = new Dexie(filename, {
         indexedDB: indexedDB || window.indexedDB,
         IDBKeyRange: IDBKeyRange || window.IDBKeyRange,
@@ -29,9 +32,6 @@ export default class Db extends events.EventEmitter {
       applyEncryptionMiddleware(this.db, key, {}, async (db) => {
         this.emit("db_load_error", "Wrong key");
       });
-
-      Dexie.dependencies.indexedDB = window.indexedDB;
-      Dexie.dependencies.IDBKeyRange = window.IDBKeyRange;
 
       this.db.version(4).stores({
         keys: "&hash, type, address, used, change",
