@@ -91,6 +91,10 @@ export class WalletFile extends events.EventEmitter {
     return await Db.ListWallets();
   }
 
+  static async SetBackend(indexedDB, IDBKeyRange) {
+    return await Db.SetBackend(indexedDB, IDBKeyRange);
+  }
+
   static async RemoveWallet(filename) {
     return await Db.RemoveWallet(filename);
   }

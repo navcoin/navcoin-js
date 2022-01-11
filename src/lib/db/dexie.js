@@ -57,6 +57,11 @@ export default class Db extends events.EventEmitter {
     }
   }
 
+  static SetBackend(indexedDB, IDBKeyRange) {
+    Dexie.dependencies.indexedDB = indexedDB;
+    Dexie.dependencies.IDBKeyRange = IDBKeyRange;
+  }
+
   Close() {
     if (!this.db) return;
 
@@ -824,3 +829,4 @@ export default class Db extends events.EventEmitter {
 
 export const ListWallets = Db.ListWallets;
 export const RemoveWallet = Db.RemoveWallet;
+export const SetBackend = Db.SetBackend;
