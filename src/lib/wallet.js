@@ -865,6 +865,7 @@ export class WalletFile extends events.EventEmitter {
     if (this.client) this.client.close();
     this.connected = false;
     this.queue.stop();
+    this.emit('disconnected');
 
     delete this.client;
   }
@@ -1817,7 +1818,7 @@ export class WalletFile extends events.EventEmitter {
               id,
               values[2].toString(),
               values[4].toString(),
-              values[5],
+              values[5]/1e8,
               values[3],
               values[1]
             );
