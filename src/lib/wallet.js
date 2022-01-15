@@ -2320,12 +2320,15 @@ export class WalletFile extends events.EventEmitter {
       },
     ];
 
+    if (dests.length == 0)
+      subtractFee = false;
+
     let tx = await blsct.CreateTransaction(
       utxos,
       dests,
       mvk,
       msk,
-      dests.length == 0 && subtractFee,
+      subtractFee,
       tokenId,
       tokenNftId
     );
