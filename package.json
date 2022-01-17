@@ -1,12 +1,13 @@
 {
   "name": "navcoin-js",
-  "version": "1.0.96",
+  "version": "1.0.97",
   "description": "Navcoin Javascript Library",
   "main": "./dist/index.js",
+  "browser": "./browser/bundle.js",
   "scripts": {
     "prepublish": "npm run build",
-    "clean": "rm -rf dist && mkdir dist",
-    "build": "babel -d ./dist ./src -s",
+    "clean": "rm -rf dist browser&& mkdir dist&&mkdir browser",
+    "build": "babel -d ./dist ./src -s && browserify ./dist/index.js -o ./browser/bundle.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -21,6 +22,7 @@
     "async-mutex": "^0.3.2",
     "bitcore-message": "https://github.com/aguycalled/bitcore-message.git",
     "bitcore-mnemonic": "https://github.com/aguycalled/bitcore-mnemonic.git",
+    "browserify": "^17.0.0",
     "crypto-pouch": "^4.0.1",
     "dexie": "^3.2.1-beta.2",
     "electrum-mnemonic": "^2.0.0",
