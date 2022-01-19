@@ -326,7 +326,7 @@ export class WalletFile extends events.EventEmitter {
 
     for (let i in list) {
       list[i].privateKey = (
-        await this.GetPrivateKey(list[i], spendingPassword)
+        await this.GetPrivateKey(list[i].hash, spendingPassword)
       ).toWIF();
       delete list[i].value;
     }
