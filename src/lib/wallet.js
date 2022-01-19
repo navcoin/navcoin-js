@@ -321,12 +321,12 @@ export class WalletFile extends events.EventEmitter {
 
   async NavGetPrivateKeys(spendingPassword, address) {
     let list = address
-      ? await this.db.GetNavAddress(address)
+      ? [await this.db.GetNavAddress(address)]
       : await this.db.GetNavReceivingAddresses(true);
 
     for (let i in list) {
       list[i].privateKey = (
-        await this.GetPrivateKey(list[i].hash, spendingPassword)
+        await this.GetPrivateKey(list[i], spendingPassword)
       ).toWIF();
       delete list[i].value;
     }
