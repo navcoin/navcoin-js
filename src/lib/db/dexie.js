@@ -219,7 +219,7 @@ export default class Db extends events.EventEmitter {
     if (!this.db) return;
 
     let dbFind = await this.db.keys
-      .get(key)
+      .get({ hash: key })
       .catch("DatabaseClosedError", (e) => {
         console.error("DatabaseClosed error: " + e.message);
       });
@@ -240,6 +240,7 @@ export default class Db extends events.EventEmitter {
         plaintextBytes = Buffer.concat([plaintextBytes, aes.final()]);
         ret = plaintextBytes.toString();
       } catch (e) {
+        console.log(e);
         return ret;
       }
     }

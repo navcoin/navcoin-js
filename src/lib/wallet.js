@@ -865,7 +865,7 @@ export class WalletFile extends events.EventEmitter {
     if (this.client) this.client.close();
     this.connected = false;
     this.queue.stop();
-    this.emit('disconnected');
+    this.emit("disconnected");
 
     delete this.client;
   }
@@ -1103,7 +1103,7 @@ export class WalletFile extends events.EventEmitter {
           new bitcore.encoding.BufferReader(new Buffer(utxo.out, "hex"))
         );
 
-        out.tokenId = out.tokenId.reverse();
+        out.tokenId = out.tokenId;
 
         if (
           out.tokenId &&
@@ -1316,7 +1316,9 @@ export class WalletFile extends events.EventEmitter {
         }
         let nftInfo = await this.GetNftInfo(tokenId, tokenNftId);
 
-        ret.nfts[tokenId].confirmed[tokenNftId] = nftInfo.metadata;
+        ret.nfts[tokenId].confirmed[tokenNftId] = nftInfo
+          ? nftInfo.metadata
+          : "";
       }
     }
 
@@ -1347,7 +1349,10 @@ export class WalletFile extends events.EventEmitter {
         }
         let nftInfo = await this.GetNftInfo(tokenId, tokenNftId);
 
-        if (nftInfo) ret.nfts[tokenId].pending[tokenNftId] = nftInfo.metadata;
+        if (nftInfo)
+          ret.nfts[tokenId].pending[tokenNftId] = nftInfo
+            ? nftInfo.metadata
+            : "";
       }
     }
 
@@ -1818,7 +1823,7 @@ export class WalletFile extends events.EventEmitter {
               id,
               values[2].toString(),
               values[4].toString(),
-              values[5]/1e8,
+              values[5] / 1e8,
               values[3],
               values[1]
             );
@@ -2320,8 +2325,7 @@ export class WalletFile extends events.EventEmitter {
       },
     ];
 
-    if (dests.length == 0)
-      subtractFee = false;
+    if (dests.length == 0) subtractFee = false;
 
     let tx = await blsct.CreateTransaction(
       utxos,
@@ -2349,7 +2353,9 @@ export class WalletFile extends events.EventEmitter {
     tokenId = new Buffer(new Uint8Array(32)).toString("hex"),
     tokenNftId = -1,
     vData = new Buffer([]),
-    extraKey = undefined
+    extraKey = undefined,
+    ignoreInputs = false,
+    ignoreFees = false
   ) {
     if (amount < 0) throw new TypeError("Amount must be positive");
 
@@ -2370,35 +2376,42 @@ export class WalletFile extends events.EventEmitter {
     let utxos = [];
     let utxosTok = [];
 
-    for (const out_i in utx) {
-      let out = utx[out_i];
+    if (!ignoreInputs) {
+      for (const out_i in utx) {
+        let out = utx[out_i];
 
-      if (!out.output.isCt()) continue;
+        if (!out.output.isCt()) continue;
 
-      utxos.push(out);
+        utxos.push(out);
+      }
+
+      for (const out_i in utxTok) {
+        let out = utxTok[out_i];
+
+        if (!out.output.isCt()) continue;
+
+        utxosTok.push(out);
+      }
+
+      if (!utxos.length) throw new Error("No available xNAV outputs");
+      if (
+        !utxosTok.length &&
+        (!vData.length || (vData.length && vData[0] != 3))
+      )
+        throw new Error("No available Token outputs");
     }
 
-    for (const out_i in utxTok) {
-      let out = utxTok[out_i];
-
-      if (!out.output.isCt()) continue;
-
-      utxosTok.push(out);
-    }
-
-    if (!utxos.length) throw new Error("No available xNAV outputs");
-    if (!utxosTok.length && (!vData.length || (vData.length && vData[0] != 3)))
-      throw new Error("No available Token outputs");
-
-    let dests = [
-      {
-        dest: dest,
-        amount: amount,
-        memo: memo,
-        vData: vData,
-        extraKey: extraKey,
-      },
-    ];
+    let dests = _.isArray(dest)
+      ? dest
+      : [
+          {
+            dest: dest,
+            amount: amount,
+            memo: memo,
+            vData: vData,
+            extraKey: extraKey,
+          },
+        ];
 
     let txTok = await blsct.CreateTransaction(
       utxosTok,
@@ -2410,21 +2423,26 @@ export class WalletFile extends events.EventEmitter {
       tokenNftId
     );
 
-    let txxNav = await blsct.CreateTransaction(
-      utxos,
-      [],
-      mvk,
-      msk,
-      false,
-      new Buffer(new Uint8Array(32)),
-      -1,
-      txTok.feeAmount
-    );
+    let txxNav = !ignoreFees
+      ? await blsct.CreateTransaction(
+          utxos,
+          [],
+          mvk,
+          msk,
+          false,
+          new Buffer(new Uint8Array(32)),
+          -1,
+          txTok.feeAmount
+        )
+      : undefined;
 
-    let combinedTx = blsct.CombineTransactions([
-      txTok.toString(),
-      txxNav.toString(),
-    ]);
+    let toCombine = [txTok.toString()];
+
+    if (!ignoreFees) {
+      toCombine.push(txxNav.toString());
+    }
+
+    let combinedTx = blsct.CombineTransactions(toCombine);
 
     if (await this.GetMasterKey("nav", spendingPassword)) {
       await this.xNavFillKeyPool(spendingPassword);
@@ -2676,7 +2694,6 @@ export class WalletFile extends events.EventEmitter {
       .reverse()
       .toString("hex");
     return ret;
-    return ret;
   }
 
   async MintNft(id, nftid, dest, metadata, spendingPassword) {
@@ -2713,6 +2730,222 @@ export class WalletFile extends events.EventEmitter {
       vData,
       derived
     );
+  }
+
+  async AcceptOrder(order, spendingPassword) {
+    let mvk = this.mvk;
+    let msk = await this.GetMasterSpendKey(spendingPassword);
+
+    if (!(msk && mvk)) throw new Error("Wrong spending password");
+
+    for (let i in order.pay) {
+      if (!order.pay[i].tokenId)
+        order.pay[i].tokenId = new Buffer(new Uint8Array(32));
+      if (!Buffer.isBuffer(order.receive[i].tokenId))
+        order.pay[i].tokenId = new Buffer(order.pay[i].tokenId, "hex");
+      if (!order.pay[i].tokenNftId) order.pay[i].tokenNftId = -1;
+    }
+
+    for (let i in order.receive) {
+      if (!order.receive[i].tokenId)
+        order.receive[i].tokenId = new Buffer(new Uint8Array(32));
+      if (!Buffer.isBuffer(order.receive[i].tokenId))
+        order.receive[i].tokenId = new Buffer(order.receive[i].tokenId, "hex");
+      if (!order.receive[i].tokenNftId) order.receive[i].tokenNftId = -1;
+    }
+
+    let utxos = await this.GetUtxos(
+      OutputTypes.XNAV,
+      undefined,
+      order.pay[0].tokenId,
+      order.pay[0].tokenNftId
+    );
+
+    let dests = [
+      {
+        dest: bitcore.Script.fromHex("6a"),
+        amount: order.pay[0].amount,
+        tokenId: order.pay[0].tokenId,
+        tokenNftId: order.pay[0].tokenNftId,
+        ignore: true,
+      },
+      {
+        dest: (await this.xNavReceivingAddresses(true))[0].address,
+        amount: order.receive[0].amount,
+        tokenId: order.receive[0].tokenId,
+        tokenNftId: order.receive[0].tokenNftId,
+      },
+    ];
+
+    let takeTx = await blsct.CreateTransaction(
+      utxos,
+      dests,
+      mvk,
+      msk,
+      false,
+      order.pay[0].tokenId,
+      order.pay[0].tokenNftId
+    );
+
+    let combinedTx = blsct.CombineTransactions([
+      takeTx.toString(),
+      order.tx[0],
+    ]);
+
+    return {
+      tx: combinedTx.toString(),
+    };
+  }
+
+  async CreateMintNftOrder(
+    id,
+    nftid,
+    payTo,
+    price,
+    metadata = "",
+    spendingPassword
+  ) {
+    let token = await this.GetTokenInfo(id);
+
+    if (!token || (token && token.name == undefined))
+      throw new Error("Unknown token");
+
+    let derived = await this.DeriveSpendingKeyFromStringHash(
+      "token/",
+      token.name + token.code,
+      spendingPassword
+    );
+    let key = blsct.SkToPubKey(new Buffer(derived).toString("hex"));
+
+    if (new Buffer(token.key).toString("hex") != key.serializeToHexStr())
+      throw new Error("You don't own the token");
+
+    let vData = Buffer.concat([
+      new Buffer([3, 0, 0, 0, 48]),
+      new Buffer(key.serialize()),
+      new Buffer(bitcore.crypto.Blsct.bytesArray(nftid).reverse()),
+      new Buffer(bitcore.encoding.Varint(metadata.length).buf),
+      new Buffer(new Buffer(metadata, "utf-8")),
+    ]);
+
+    return {
+      tx: (
+        await this.tokenCreateTransaction(
+          [
+            {
+              dest: payTo,
+              amount: price,
+              memo: `${token.name.substr(0, 20)} ${nftid} mint`,
+              tokenId: new Buffer(new Uint8Array(32)).toString("hex"),
+              tokenNftId: -1,
+            },
+            {
+              dest: bitcore.Script.fromHex("6ac1"),
+              amount: 0,
+              vData: vData,
+              extraKey: derived,
+              tokenId: new Buffer(id, "hex"),
+              tokenNftId: nftid,
+            },
+          ],
+          1,
+          "",
+          spendingPassword,
+          id,
+          nftid,
+          undefined,
+          derived,
+          true,
+          true
+        )
+      ).tx,
+      pay: [{ amount: price }],
+      receive: [{ amount: 1, tokenId: id, tokenNftId: nftid }],
+    };
+  }
+
+  async CreateSellNftOrder(id, nftid, payTo, price, spendingPassword) {
+    let token = await this.GetTokenInfo(id);
+
+    if (!token || (token && token.name == undefined))
+      throw new Error("Unknown token");
+
+    return {
+      tx: (
+        await this.tokenCreateTransaction(
+          [
+            {
+              dest: payTo,
+              amount: 1,
+              memo: "",
+              tokenId: new Buffer(id, "hex"),
+              tokenNftId: nftid,
+              ignore: true,
+            },
+            {
+              dest: payTo,
+              amount: price,
+              memo: `${token.name.substr(0, 20)} ${nftid} sale`,
+              tokenId: new Buffer(new Uint8Array(32)).toString("hex"),
+              tokenNftId: -1,
+            },
+          ],
+          1,
+          "",
+          spendingPassword,
+          id,
+          nftid,
+          undefined,
+          undefined,
+          false,
+          true
+        )
+      ).tx,
+      pay: [{ amount: price }],
+      receive: [{ amount: 1, tokenId: id, tokenNftId: nftid }],
+    };
+  }
+
+  async CreateBuyNftOrder(id, nftid, payTo, price, spendingPassword) {
+    let token = await this.GetTokenInfo(id);
+
+    if (!token || (token && token.name == undefined))
+      throw new Error("Unknown token");
+
+    return {
+      tx: (
+        await this.tokenCreateTransaction(
+          [
+            {
+              dest: payTo,
+              amount: price,
+              memo: "",
+              tokenId: new Buffer(new Uint8Array(32)).toString("hex"),
+              tokenNftId: -1,
+              ignore: true,
+            },
+            {
+              dest: payTo,
+              amount: 1,
+              memo: `${token.name.substr(0, 20)} ${nftid} purchase`,
+              tokenId: new Buffer(id, "hex"),
+              tokenNftId: nftid,
+            },
+          ],
+          1,
+          "",
+          spendingPassword,
+          new Buffer(new Uint8Array(32)).toString("hex"),
+          -1,
+          undefined,
+          undefined,
+          false,
+          true
+        )
+      ).tx,
+      pay: [{ amount: 1, tokenId: id, tokenNftId: nftid }],
+      receive: [{ amount: price }],
+    };
   }
 
   async UpdateName(name, subdomain, key, value, spendingPassword) {

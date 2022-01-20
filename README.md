@@ -590,6 +590,74 @@ catch(e)
 }
 ````
 
+### CreateMintNftOrder(tokenId, tokenNftId, payTo, price, metadata, spendingPassword)
+
+Creates an order to mint NFT `tokenId`:`tokenNftId` with metadata `metadata` in exchange of a payment of `price` xNAV sent to `payTo`.
+
+Returns an object with the partial transaction, the assets needed to complete the transaction and the assets received.
+
+Example:
+
+````javascript
+try {
+    // Create buy order to buy an NFT mint in exchange of 10 xNAV payment
+    let order = await wallet.CreateMintNftOffer("adb78af655528f5323e1c4c241a3c4576634449a98162697fc74bd2041e3d878", 4, "xNUBDkjEKRRxXfN3nAbeBZLWbePjswoKi9PHboXfJzbqmg6heMbxJhhovMmebqN96AaXyFYsZFfGXaGVptFnPzyQjGE8bbo83kEZG5jUXbKoaJPC4ztTg1zw3dUyavXNVVUoeuDB3Yu", 10*1e8, "{file:\"http://navcoin.org/logo.png\"}")
+} catch(e) {
+    console.log(`error creating offer: ${e}`);
+}
+````
+
+### CreateBuyNftOrder(tokenId, tokenNftId, payTo, price, metadata, spendingPassword)
+
+Creates a buy order for NFT `tokenId`:`tokenNftId` in exchange of a payment of `price` xNAV sent to `payTo`.
+
+Returns an object with the partial transaction, the assets needed to complete the transaction and the assets received.
+
+Example:
+
+````javascript
+try {
+    // Create buy order to buy an NFT in exchange of 10 xNAV payment
+    let order = await wallet.CreateBuyNftOffer("adb78af655528f5323e1c4c241a3c4576634449a98162697fc74bd2041e3d878", 4, "xNUBDkjEKRRxXfN3nAbeBZLWbePjswoKi9PHboXfJzbqmg6heMbxJhhovMmebqN96AaXyFYsZFfGXaGVptFnPzyQjGE8bbo83kEZG5jUXbKoaJPC4ztTg1zw3dUyavXNVVUoeuDB3Yu", 10*1e8)
+} catch(e) {
+    console.log(`error creating offer: ${e}`);
+}
+````
+
+### CreateSellNftOrder(tokenId, tokenNftId, payTo, price, metadata, spendingPassword)
+
+Creates a sell order for NFT `tokenId`:`tokenNftId` in exchange of a payment of `price` xNAV sent to `payTo`.
+
+Returns an object with the partial transaction, the assets needed to complete the transaction and the assets received.
+
+Example:
+
+````javascript
+try {
+    // Create buy order to buy an NFT mint in exchange of 10 xNAV payment
+    let order = await wallet.CreateSellNftOffer("adb78af655528f5323e1c4c241a3c4576634449a98162697fc74bd2041e3d878", 4, "xNUBDkjEKRRxXfN3nAbeBZLWbePjswoKi9PHboXfJzbqmg6heMbxJhhovMmebqN96AaXyFYsZFfGXaGVptFnPzyQjGE8bbo83kEZG5jUXbKoaJPC4ztTg1zw3dUyavXNVVUoeuDB3Yu", 10*1e8)
+} catch(e) {
+    console.log(`error creating offer: ${e}`);
+}
+````
+
+### AcceptOrder(order, spendingPassword)
+
+Creates a transaction which accepts the order `order`.
+
+Example:
+
+`````javascript
+try {
+    let tx = await wallet.AcceptOrder(order, "my password");
+    let hash = await wallet.SendTransaction(tx.tx);
+    
+    console.log(`Transaction accepted with hash ${hash}`);
+} catch(e) {
+    console.log(`error accepting offer: ${e}`);
+}
+`````
+
 ## Events
 
 ### new_mnemonic
