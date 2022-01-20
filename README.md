@@ -607,7 +607,7 @@ try {
 }
 ````
 
-### CreateBuyNftOrder(tokenId, tokenNftId, payTo, price, metadata, spendingPassword)
+### CreateBuyNftOrder(tokenId, tokenNftId, payTo, price, spendingPassword)
 
 Creates a buy order for NFT `tokenId`:`tokenNftId` in exchange of a payment of `price` xNAV sent to `payTo`.
 
@@ -624,7 +624,7 @@ try {
 }
 ````
 
-### CreateSellNftOrder(tokenId, tokenNftId, payTo, price, metadata, spendingPassword)
+### CreateSellNftOrder(tokenId, tokenNftId, payTo, price, spendingPassword)
 
 Creates a sell order for NFT `tokenId`:`tokenNftId` in exchange of a payment of `price` xNAV sent to `payTo`.
 
