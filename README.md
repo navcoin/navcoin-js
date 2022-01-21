@@ -603,7 +603,7 @@ try {
     // Create buy order to buy an NFT mint in exchange of 10 xNAV payment
     let order = await wallet.CreateMintNftOrder("adb78af655528f5323e1c4c241a3c4576634449a98162697fc74bd2041e3d878", 4, "xNUBDkjEKRRxXfN3nAbeBZLWbePjswoKi9PHboXfJzbqmg6heMbxJhhovMmebqN96AaXyFYsZFfGXaGVptFnPzyQjGE8bbo83kEZG5jUXbKoaJPC4ztTg1zw3dUyavXNVVUoeuDB3Yu", 10*1e8, "{file:\"http://navcoin.org/logo.png\"}")
 } catch(e) {
-    console.log(`error creating offer: ${e}`);
+    console.log(`error creating order: ${e}`);
 }
 ````
 
@@ -620,7 +620,7 @@ try {
     // Create buy order to buy an NFT in exchange of 10 xNAV payment
     let order = await wallet.CreateBuyNftOrder("adb78af655528f5323e1c4c241a3c4576634449a98162697fc74bd2041e3d878", 4, "xNUBDkjEKRRxXfN3nAbeBZLWbePjswoKi9PHboXfJzbqmg6heMbxJhhovMmebqN96AaXyFYsZFfGXaGVptFnPzyQjGE8bbo83kEZG5jUXbKoaJPC4ztTg1zw3dUyavXNVVUoeuDB3Yu", 10*1e8)
 } catch(e) {
-    console.log(`error creating offer: ${e}`);
+    console.log(`error creating order: ${e}`);
 }
 ````
 
@@ -635,9 +635,9 @@ Example:
 ````javascript
 try {
     // Create buy order to buy an NFT mint in exchange of 10 xNAV payment
-    let order = await wallet.CreateSellNftOffer("adb78af655528f5323e1c4c241a3c4576634449a98162697fc74bd2041e3d878", 4, "xNUBDkjEKRRxXfN3nAbeBZLWbePjswoKi9PHboXfJzbqmg6heMbxJhhovMmebqN96AaXyFYsZFfGXaGVptFnPzyQjGE8bbo83kEZG5jUXbKoaJPC4ztTg1zw3dUyavXNVVUoeuDB3Yu", 10*1e8)
+    let order = await wallet.CreateSellNftOrder("adb78af655528f5323e1c4c241a3c4576634449a98162697fc74bd2041e3d878", 4, "xNUBDkjEKRRxXfN3nAbeBZLWbePjswoKi9PHboXfJzbqmg6heMbxJhhovMmebqN96AaXyFYsZFfGXaGVptFnPzyQjGE8bbo83kEZG5jUXbKoaJPC4ztTg1zw3dUyavXNVVUoeuDB3Yu", 10*1e8)
 } catch(e) {
-    console.log(`error creating offer: ${e}`);
+    console.log(`error creating order: ${e}`);
 }
 ````
 
@@ -654,7 +654,7 @@ try {
     
     console.log(`Transaction accepted with hash ${hash}`);
 } catch(e) {
-    console.log(`error accepting offer: ${e}`);
+    console.log(`error accepting order: ${e}`);
 }
 `````
 
