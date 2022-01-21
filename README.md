@@ -497,7 +497,7 @@ Returns whether a string is a valid dotNav name.
 
 Returns whether a string is a valid dotNav key.
 
-### CreateToken(name, code, max_sypplu, spending_password)
+### CreateToken(name, code, max_supply, spending_password)
 
 Creates a private token with name `name`, currency code `code` and max supply `max_supply`.
 
@@ -516,7 +516,7 @@ catch(e)
 }
 ````
 
-### CreateNft(name, scheme, max_sypplu, spending_password)
+### CreateNft(name, scheme, max_supply, spending_password)
 
 Creates a NFT with name `name`, scheme `scheme` and max supply `max_supply`.
 
@@ -601,7 +601,7 @@ Example:
 ````javascript
 try {
     // Create buy order to buy an NFT mint in exchange of 10 xNAV payment
-    let order = await wallet.CreateMintNftOffer("adb78af655528f5323e1c4c241a3c4576634449a98162697fc74bd2041e3d878", 4, "xNUBDkjEKRRxXfN3nAbeBZLWbePjswoKi9PHboXfJzbqmg6heMbxJhhovMmebqN96AaXyFYsZFfGXaGVptFnPzyQjGE8bbo83kEZG5jUXbKoaJPC4ztTg1zw3dUyavXNVVUoeuDB3Yu", 10*1e8, "{file:\"http://navcoin.org/logo.png\"}")
+    let order = await wallet.CreateMintNftOrder("adb78af655528f5323e1c4c241a3c4576634449a98162697fc74bd2041e3d878", 4, "xNUBDkjEKRRxXfN3nAbeBZLWbePjswoKi9PHboXfJzbqmg6heMbxJhhovMmebqN96AaXyFYsZFfGXaGVptFnPzyQjGE8bbo83kEZG5jUXbKoaJPC4ztTg1zw3dUyavXNVVUoeuDB3Yu", 10*1e8, "{file:\"http://navcoin.org/logo.png\"}")
 } catch(e) {
     console.log(`error creating offer: ${e}`);
 }
@@ -618,7 +618,7 @@ Example:
 ````javascript
 try {
     // Create buy order to buy an NFT in exchange of 10 xNAV payment
-    let order = await wallet.CreateBuyNftOffer("adb78af655528f5323e1c4c241a3c4576634449a98162697fc74bd2041e3d878", 4, "xNUBDkjEKRRxXfN3nAbeBZLWbePjswoKi9PHboXfJzbqmg6heMbxJhhovMmebqN96AaXyFYsZFfGXaGVptFnPzyQjGE8bbo83kEZG5jUXbKoaJPC4ztTg1zw3dUyavXNVVUoeuDB3Yu", 10*1e8)
+    let order = await wallet.CreateBuyNftOrder("adb78af655528f5323e1c4c241a3c4576634449a98162697fc74bd2041e3d878", 4, "xNUBDkjEKRRxXfN3nAbeBZLWbePjswoKi9PHboXfJzbqmg6heMbxJhhovMmebqN96AaXyFYsZFfGXaGVptFnPzyQjGE8bbo83kEZG5jUXbKoaJPC4ztTg1zw3dUyavXNVVUoeuDB3Yu", 10*1e8)
 } catch(e) {
     console.log(`error creating offer: ${e}`);
 }
