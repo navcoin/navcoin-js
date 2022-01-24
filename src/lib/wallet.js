@@ -112,6 +112,8 @@ export class WalletFile extends events.EventEmitter {
     options = options || {};
 
     this.daoConsensus = {};
+    this.daoConsultations = {};
+    this.daoProposals = {};
 
     if (!this.db) throw new Error("DB did not load.");
 
@@ -698,6 +700,7 @@ export class WalletFile extends events.EventEmitter {
 
       let tip = (await this.client.blockchain_headers_subscribe()).height;
       this.daoConsensus = await this.client.blockchain_consensus_subscribe();
+      await this.client.blockchain_dao_subscribe();
 
       await this.SetTip(tip);
 
@@ -719,6 +722,31 @@ export class WalletFile extends events.EventEmitter {
           this.daoConsensus = event;
         }
       );
+
+      this.client.subscribe.on("blockchain.dao.subscribe", async (event) => {
+        let type =
+          event[0].t == "c" ? this.daoConsultations : this.daoProposals;
+        let hash = event[0].w.hash;
+        let remove = event[0].r;
+
+        if (event[0].t == "c") {
+          this.emit(
+            remove ? "dao_consultation_remove" : "dao_consultation",
+            event[0].w
+          );
+        } else if (event[0].t == "p") {
+          this.emit(
+            remove ? "dao_proposal_remove" : "dao_proposal",
+            event[0].w
+          );
+        }
+
+        if (remove) {
+          delete type[hash];
+        } else {
+          type[hash] = event[0].w;
+        }
+      });
     } catch (e) {
       this.connected = false;
       this.emit("connection_failed");
@@ -759,6 +787,14 @@ export class WalletFile extends events.EventEmitter {
 
   GetConsensusParameters() {
     return this.daoConsensus;
+  }
+
+  GetConsultations() {
+    return this.daoConsultations;
+  }
+
+  GetProposals() {
+    return this.daoProposals;
   }
 
   async QueueTx(hash, inMine, height, requestInputs, priority) {

@@ -1,2 +1,2 @@
-export var version = "v0.1.0";
+export var version = "v1.1.2";
 export * as wallet from "./lib/wallet.js";

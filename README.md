@@ -658,6 +658,18 @@ try {
 }
 `````
 
+### GetConsensusParameters()
+
+Returns an array with the different consensus parameters and their values.
+
+### GetProposals()
+
+Returns an array with the history of DAO Funding proposals.
+
+### GetConsultations()
+
+Returns an array with the history of DAO Consultations.
+
 ## Events
 
 ### new_mnemonic
