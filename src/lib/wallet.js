@@ -553,13 +553,13 @@ export class WalletFile extends events.EventEmitter {
     ).toString("hex");
   }
 
-  async ResolveName(name) {
+  async ResolveName(name, subdomains) {
     try {
-      return this.client.blockchain_dotnav_resolveName(name);
+      return this.client.blockchain_dotnav_resolveName(name, subdomains);
     } catch (e) {
       console.log("ResolveName", e);
       await this.ManageElectrumError(e);
-      return await this.ResolveName(name);
+      return await this.ResolveName(name, subdomains);
     }
   }
 
