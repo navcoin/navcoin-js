@@ -553,7 +553,7 @@ export class WalletFile extends events.EventEmitter {
     ).toString("hex");
   }
 
-  async ResolveName(name, subdomains) {
+  async ResolveName(name, subdomains = false) {
     try {
       return this.client.blockchain_dotnav_resolveName(name, subdomains);
     } catch (e) {
@@ -2996,15 +2996,23 @@ export class WalletFile extends events.EventEmitter {
     name = name.toLowerCase();
 
     try {
-      nameResolve = await this.ResolveName(name);
-      if (Object.keys(nameResolve).length == 0) {
+      nameResolve = await this.ResolveName(name, true);
+      if (Object.keys(nameResolve) && Object.keys(nameResolve).length == 0) {
         first = true;
       } else {
         for (var key_ in nameResolve) {
-          size += key_.length + nameResolve[key_].length;
+          if (_lodash.default.isString(nameResolve[key_]))
+            size += key_.length + nameResolve[key_].length;
+          else {
+            for (var key_2 in nameResolve[key_]) {
+              if (_lodash.default.isString(nameResolve[key_][key_2]))
+                size += key_2.length + nameResolve[key_][key_2].length;
+            }
+          }
         }
       }
     } catch (e) {
+      console.log(e);
       first = true;
     }
 
