@@ -3001,11 +3001,11 @@ export class WalletFile extends events.EventEmitter {
         first = true;
       } else {
         for (var key_ in nameResolve) {
-          if (_lodash.default.isString(nameResolve[key_]))
+          if (_.isString(nameResolve[key_]))
             size += key_.length + nameResolve[key_].length;
           else {
             for (var key_2 in nameResolve[key_]) {
-              if (_lodash.default.isString(nameResolve[key_][key_2]))
+              if (_.isString(nameResolve[key_][key_2]))
                 size += key_2.length + nameResolve[key_][key_2].length;
             }
           }
