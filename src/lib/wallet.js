@@ -219,7 +219,7 @@ export class WalletFile extends events.EventEmitter {
     }
 
     if (
-      this.newWallet &&
+      (this.newWallet || (await this.db.GetStakingAddresses())?.length == 0) &&
       (this.type === "navcash" || this.type == "navcoin-js-v1")
     ) {
       let pool =
