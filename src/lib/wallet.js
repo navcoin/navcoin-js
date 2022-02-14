@@ -218,10 +218,7 @@ export class WalletFile extends events.EventEmitter {
       await this.NavFillKeyPool(this.spendingPassword);
     }
 
-    if (
-      (this.newWallet || (await this.db.GetStakingAddresses())?.length == 0) &&
-      (this.type === "navcash" || this.type == "navcoin-js-v1")
-    ) {
+    if (this.newWallet || (await this.db.GetStakingAddresses())?.length == 0) {
       let pool =
         this.network == "mainnet"
           ? "NfLgDYL4C3KKXDS8tLRAFM7spvLykV8v9A"
