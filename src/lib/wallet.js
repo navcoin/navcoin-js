@@ -3243,7 +3243,7 @@ export class WalletFile extends events.EventEmitter {
 
   async AddCandidate(candidate) {
     let currentStatus = await this.client.blockchain_outpoint_subscribe(
-      candidate.tx.inputs[0].prevTxId,
+      candidate.tx.inputs[0].prevTxId.toString("hex"),
       candidate.tx.inputs[0].outputIndex
     );
     if (
