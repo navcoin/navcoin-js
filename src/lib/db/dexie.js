@@ -693,7 +693,7 @@ export default class Db extends events.EventEmitter {
   }
 
   async GetCandidates() {
-    if (!this.db) return;
+    if (!this.dbTx) return;
 
     return await this.dbTx.candidates
       .toArray()
@@ -703,7 +703,7 @@ export default class Db extends events.EventEmitter {
   }
 
   async GetTxs() {
-    if (!this.db) return;
+    if (!this.dbTx) return;
 
     return await this.dbTx.txs.toArray().catch("DatabaseClosedError", (e) => {
       console.error("DatabaseClosed error: " + e.message);
@@ -850,7 +850,7 @@ export default class Db extends events.EventEmitter {
   }
 
   async AddTxCandidate(candidate) {
-    if (!this.db) return;
+    if (!this.dbTx) return;
 
     try {
       await this.dbTx.candidates
@@ -858,7 +858,7 @@ export default class Db extends events.EventEmitter {
           tx: candidate.tx.toString(),
           fee: candidate.fee,
           input:
-            candidate.tx.inputs[0].prevTxId +
+            candidate.tx.inputs[0].prevTxId.toString("hex") +
             ":" +
             candidate.tx.inputs[0].outputIndex,
         })
