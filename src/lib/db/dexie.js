@@ -29,14 +29,17 @@ export default class Db extends events.EventEmitter {
         IDBKeyRange: IDBKeyRange || window.IDBKeyRange,
       });
 
+      this.dbTx = new Dexie("___tx___", {
+        indexedDB: indexedDB || window.indexedDB,
+        IDBKeyRange: IDBKeyRange || window.IDBKeyRange,
+      });
+
       applyEncryptionMiddleware(this.db, key, {}, async (db) => {
         this.emit("db_load_error", "Wrong key");
       });
 
-      this.db.version(4).stores({
+      this.db.version(5).stores({
         keys: "&hash, type, address, used, change",
-        txs: "&hash",
-        txKeys: "&hash",
         walletTxs: "&id, hash, amount, type, confirmed, height, pos, timestamp",
         outPoints: "&id, spentIn, amount, label, type",
         scriptHistories: "&id, scriptHash, tx_hash, height, fetched",
@@ -48,6 +51,12 @@ export default class Db extends events.EventEmitter {
         names: "&name",
         tokens: "&id",
         nfts: "&id",
+      });
+
+      this.dbTx.version(1).stores({
+        txs: "&hash",
+        txKeys: "&hash",
+        candidates: "&id",
       });
 
       this.emit("db_open");
@@ -66,6 +75,7 @@ export default class Db extends events.EventEmitter {
     if (!this.db) return;
 
     this.db.close();
+    this.dbTx.close();
     this.emit("db_closed");
   }
 
@@ -346,7 +356,7 @@ export default class Db extends events.EventEmitter {
 
   async BulkRawInsert(documents) {
     if (!this.db) return;
-    await this.db.txKeys.bulkPut(documents).catch(console.log);
+    await this.dbTx.txKeys.bulkPut(documents).catch(console.log);
   }
 
   async BulkRawInsertHistory(documents) {
@@ -680,10 +690,28 @@ export default class Db extends events.EventEmitter {
     });
   }
 
+  async GetCandidates() {
+    if (!this.db) return;
+
+    return await this.dbTx.candidates
+      .toArray()
+      .catch("DatabaseClosedError", (e) => {
+        console.error("DatabaseClosed error: " + e.message);
+      });
+  }
+
+  async GetTxs() {
+    if (!this.db) return;
+
+    return await this.dbTx.txs.toArray().catch("DatabaseClosedError", (e) => {
+      console.error("DatabaseClosed error: " + e.message);
+    });
+  }
+
   async GetTx(hash) {
     if (!this.db) return;
 
-    return await this.db.txs.get(hash).catch("DatabaseClosedError", (e) => {
+    return await this.dbTx.txs.get(hash).catch("DatabaseClosedError", (e) => {
       console.error("DatabaseClosed error: " + e.message);
     });
   }
@@ -749,7 +777,7 @@ export default class Db extends events.EventEmitter {
     if (!this.db) return;
 
     try {
-      await this.db.txs
+      await this.dbTx.txs
         .where({ hash: hash })
         .modify({ height: height, pos: pos })
         .catch("DatabaseClosedError", (e) => {
@@ -796,7 +824,7 @@ export default class Db extends events.EventEmitter {
     tx.hash = tx.txid;
     delete tx.tx;
     try {
-      await this.db.txs.add(tx).catch("DatabaseClosedError", (e) => {
+      await this.dbTx.txs.add(tx).catch("DatabaseClosedError", (e) => {
         console.error("DatabaseClosed error: " + e.message);
       });
       return true;
@@ -810,7 +838,7 @@ export default class Db extends events.EventEmitter {
 
     tx.hash = tx.txidkeys;
     try {
-      await this.db.txKeys.add(tx).catch("DatabaseClosedError", (e) => {
+      await this.dbTx.txKeys.add(tx).catch("DatabaseClosedError", (e) => {
         console.error("DatabaseClosed error: " + e.message);
       });
       return true;
@@ -819,12 +847,47 @@ export default class Db extends events.EventEmitter {
     }
   }
 
+  async AddTxCandidate(candidate) {
+    if (!this.db) return;
+
+    try {
+      await this.dbTx.candidates
+        .add({
+          tx: candidate.tx.toString(),
+          fee: candidate.fee,
+          input:
+            candidate.tx.inputs[0].prevTxId +
+            ":" +
+            candidate.tx.inputs[0].outputIndex,
+        })
+        .catch("DatabaseClosedError", (e) => {
+          console.error("DatabaseClosed error: " + e.message);
+        });
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  async RemoveTxCandidate(input) {
+    if (!this.db) return;
+
+    await this.dbTx.candidates
+      .where({ input: input })
+      .delete()
+      .catch("DatabaseClosedError", (e) => {
+        console.error("DatabaseClosed error: " + e.message);
+      });
+  }
+
   async GetTxKeys(hash) {
     if (!this.db) return;
 
-    return await this.db.txKeys.get(hash).catch("DatabaseClosedError", (e) => {
-      console.error("DatabaseClosed error: " + e.message);
-    });
+    return await this.dbTx.txKeys
+      .get(hash)
+      .catch("DatabaseClosedError", (e) => {
+        console.error("DatabaseClosed error: " + e.message);
+      });
   }
 }
 

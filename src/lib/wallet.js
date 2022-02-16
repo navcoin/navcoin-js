@@ -232,7 +232,15 @@ export class WalletFile extends events.EventEmitter {
     this.mnemonic = "";
     this.spendingPassword = "";
 
-    if (this.zapwallettxes) {
+    let forceZap = false;
+
+    if (
+      (await this.db.GetUtxos(true)).length > 0 &&
+      (await this.db.GetTxs()).length == 0
+    )
+      forceZap = true;
+
+    if (this.zapwallettxes || forceZap) {
       await this.db.ZapWalletTxes();
     }
 
@@ -714,11 +722,30 @@ export class WalletFile extends events.EventEmitter {
       );
 
       this.client.subscribe.on(
+        "blockchain.outpoint.subscribe",
+        async (event) => {
+          if (event[1] && event[1].spender_txhash)
+            this.db.RemoveTxCandidate(event[0][0] + ":" + event[0][1]);
+        }
+      );
+
+      this.client.subscribe.on(
         "blockchain.consensus.subscribe",
         async (event) => {
           this.daoConsensus = event;
         }
       );
+
+      let candidates = await this.db.GetCandidates();
+
+      for (let i in candidates) {
+        let currentStatus = await this.client.blockchain_outpoint_subscribe(
+          candidates[i].input.split(":")[0],
+          candidates[i].input.split(":")[1]
+        );
+        if (currentStatus && currentStatus.spender_txhash)
+          this.db.RemoveTxCandidate(candidates[i].input);
+      }
 
       this.client.subscribe.on("blockchain.dao.subscribe", async (event) => {
         let type =
@@ -780,6 +807,10 @@ export class WalletFile extends events.EventEmitter {
       await this.ManageElectrumError(e);
       return false;
     }
+  }
+
+  async GetCandidates() {
+    return await this.db.GetCandidates();
   }
 
   GetConsensusParameters() {
@@ -3208,5 +3239,18 @@ export class WalletFile extends events.EventEmitter {
     return ret.substr(0, 4) == "xprv"
       ? bitcore.HDPrivateKey(ret).privateKey
       : bitcore.PrivateKey(ret);
+  }
+
+  async AddCandidate(candidate) {
+    let currentStatus = await this.client.blockchain_outpoint_subscribe(
+      candidate.tx.inputs[0].prevTxId,
+      candidate.tx.inputs[0].outputIndex
+    );
+    if (
+      currentStatus &&
+      !currentStatus.spender_txhash &&
+      (await this.GetCandidates()).length < 100
+    )
+      await this.db.AddTxCandidate(candidate);
   }
 }
