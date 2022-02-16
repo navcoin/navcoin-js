@@ -56,7 +56,7 @@ export default class Db extends events.EventEmitter {
       this.dbTx.version(1).stores({
         txs: "&hash",
         txKeys: "&hash",
-        candidates: "&id",
+        candidates: "&input",
       });
 
       this.emit("db_open");
