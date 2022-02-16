@@ -88,7 +88,9 @@ export default class Db extends events.EventEmitter {
   }
 
   static async ListWallets() {
-    return (await Dexie.getDatabaseNames()).filter((e) => e != "localforage");
+    return (await Dexie.getDatabaseNames()).filter(
+      (e) => e != "localforage" && e != "___tx___"
+    );
   }
 
   static async RemoveWallet(filename) {
