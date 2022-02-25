@@ -2357,7 +2357,8 @@ export class WalletFile extends events.EventEmitter {
     tokenId = new Buffer(new Uint8Array(32)),
     tokenNftId = -1,
     vData = new Buffer([]),
-    extraKey = undefined
+    extraKey = undefined,
+    extraFee = 0
   ) {
     if (amount < 0) throw new TypeError("Amount must be positive");
 
@@ -2398,7 +2399,8 @@ export class WalletFile extends events.EventEmitter {
       msk,
       subtractFee,
       tokenId,
-      tokenNftId
+      tokenNftId,
+      extraFee
     );
 
     if (await this.GetMasterKey("nav", spendingPassword)) {
