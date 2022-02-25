@@ -53,10 +53,10 @@ export default class Db extends events.EventEmitter {
         nfts: "&id",
       });
 
-      this.dbTx.version(1).stores({
+      this.dbTx.version(2).stores({
         txs: "&hash",
         txKeys: "&hash",
-        candidates: "&input",
+        candidates: "&input, network",
       });
 
       this.emit("db_open");
