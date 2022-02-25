@@ -736,7 +736,7 @@ export class WalletFile extends events.EventEmitter {
         }
       );
 
-      let candidates = await this.db.GetCandidates();
+      let candidates = await this.db.GetCandidates(this.network);
 
       for (let i in candidates) {
         let currentStatus = await this.client.blockchain_outpoint_subscribe(
@@ -810,7 +810,7 @@ export class WalletFile extends events.EventEmitter {
   }
 
   async GetCandidates() {
-    return await this.db.GetCandidates();
+    return await this.db.GetCandidates(this.network);
   }
 
   GetConsensusParameters() {
@@ -3253,6 +3253,6 @@ export class WalletFile extends events.EventEmitter {
       !currentStatus.spender_txhash &&
       (await this.GetCandidates()).length < 100
     )
-      await this.db.AddTxCandidate(candidate);
+      await this.db.AddTxCandidate(candidate, this.network);
   }
 }

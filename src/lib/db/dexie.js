@@ -692,10 +692,11 @@ export default class Db extends events.EventEmitter {
     });
   }
 
-  async GetCandidates() {
+  async GetCandidates(network) {
     if (!this.dbTx) return;
 
     return await this.dbTx.candidates
+      .where({ network: network })
       .toArray()
       .catch("DatabaseClosedError", (e) => {
         console.error("DatabaseClosed error: " + e.message);
@@ -849,12 +850,13 @@ export default class Db extends events.EventEmitter {
     }
   }
 
-  async AddTxCandidate(candidate) {
+  async AddTxCandidate(candidate, network) {
     if (!this.dbTx) return;
 
     try {
       await this.dbTx.candidates
         .add({
+          network: network,
           tx: candidate.tx.toString(),
           fee: candidate.fee,
           input:
