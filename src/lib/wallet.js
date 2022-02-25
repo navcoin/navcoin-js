@@ -3243,7 +3243,7 @@ export class WalletFile extends events.EventEmitter {
       : bitcore.PrivateKey(ret);
   }
 
-  async AddCandidate(candidate) {
+  async AddCandidate(candidate, network) {
     let currentStatus = await this.client.blockchain_outpoint_subscribe(
       candidate.tx.inputs[0].prevTxId.toString("hex"),
       candidate.tx.inputs[0].outputIndex
@@ -3253,6 +3253,6 @@ export class WalletFile extends events.EventEmitter {
       !currentStatus.spender_txhash &&
       (await this.GetCandidates()).length < 100
     )
-      await this.db.AddTxCandidate(candidate, this.network);
+      await this.db.AddTxCandidate(candidate, network);
   }
 }
