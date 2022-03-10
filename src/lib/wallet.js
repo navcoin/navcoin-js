@@ -3104,10 +3104,10 @@ export class WalletFile extends events.EventEmitter {
     subtractFee = true,
     fee = 100000,
     type = OutputTypes.NAV,
-    fromAddress = undefined
+    fromAddress = undefined,
+    ret = { fee: 0, tx: [] },
+    selectxnav = false
   ) {
-    let ret = { fee: 0, tx: [] };
-
     if (amount <= 0) throw new TypeError("Amount must be greater than 0");
 
     if (!(dest instanceof bitcore.Address))
@@ -3119,7 +3119,9 @@ export class WalletFile extends events.EventEmitter {
         subtractFee,
         fee,
         type,
-        fromAddress
+        fromAddress,
+        ret,
+        selectxnav
       );
 
     let msk = await this.GetMasterKey("xNavSpend", spendingPassword);
@@ -3138,6 +3140,11 @@ export class WalletFile extends events.EventEmitter {
 
       if (out.output.isCt())
         throw new TypeError("NavSend can only spend nav outputs");
+
+      let prevtx = await this.GetTx(out.txid);
+
+      if (prevtx.tx.outputs[out.vout].hasBlsctKeys() && !selectxnav) continue;
+      if (!prevtx.tx.outputs[out.vout].hasBlsctKeys() && selectxnav) continue;
 
       let utxo = bitcore.Transaction.UnspentOutput({
         txid: out.txid,
@@ -3165,11 +3172,27 @@ export class WalletFile extends events.EventEmitter {
     }
 
     if (addedInputs < amount + (subtractFee ? 0 : fee)) {
-      throw new Error(
-        `Not enough balance (required ${
-          amount + (subtractFee ? 0 : fee)
-        }, selected ${addedInputs})`
-      );
+      if (selectxnav) {
+        throw new Error(
+          `Not enough balance (required ${
+            amount + (subtractFee ? 0 : fee)
+          }, selected ${addedInputs})`
+        );
+      } else {
+        await this.NavCreateTransaction(
+          dest,
+          amount + (subtractFee ? 0 : fee) - addedInputs,
+          memo,
+          spendingPassword,
+          subtractFee,
+          fee,
+          type,
+          fromAddress,
+          ret,
+          true
+        );
+        amount = addedInputs;
+      }
     }
 
     if (dest.isXnav()) {
