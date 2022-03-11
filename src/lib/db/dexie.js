@@ -237,7 +237,6 @@ export default class Db extends events.EventEmitter {
       });
 
     if (!dbFind) return undefined;
-
     password = this.HashPassword(password);
 
     let ret = dbFind.value;
@@ -252,7 +251,6 @@ export default class Db extends events.EventEmitter {
         plaintextBytes = Buffer.concat([plaintextBytes, aes.final()]);
         ret = plaintextBytes.toString();
       } catch (e) {
-        console.log(e);
         return ret;
       }
     }
