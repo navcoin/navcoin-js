@@ -685,6 +685,11 @@ export class WalletFile extends events.EventEmitter {
   }
 
   async Connect(resetFailed = true) {
+    if (!this.electrumNodes[this.electrumNodeIndex]) this.electrumNodeIndex = 0;
+
+    if (!this.electrumNodes[this.electrumNodeIndex])
+      throw new Error("No nodes in the list, use AddNode");
+
     this.client = new electrum(
       this.electrumNodes[this.electrumNodeIndex].host,
       this.electrumNodes[this.electrumNodeIndex].port,
