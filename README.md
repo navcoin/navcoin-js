@@ -658,6 +658,35 @@ try {
 }
 `````
 
+### CreateNftProof(tokenId, nftId, spendingPassword)
+
+Creates an ownership proof for an specific NFT.
+
+Example:
+
+`````javascript
+try {
+    let proof = await wallet.CreateNftProof("adb78af655528f5323e1c4c241a3c4576634449a98162697fc74bd2041e3d878", 1, "my password");
+} catch(e) {
+    console.log(`error creating proof: ${e}`);
+}
+`````
+
+### VerifyNftProof(tokenId, nftId, proof)
+
+Verifies an ownership proof for an specific NFT.
+
+Example:
+
+`````javascript
+try {
+    let proof = await wallet.CreateNftProof("adb78af655528f5323e1c4c241a3c4576634449a98162697fc74bd2041e3d878", 1, "my password");
+    let valid = await wallet.VerifyNftProof("adb78af655528f5323e1c4c241a3c4576634449a98162697fc74bd2041e3d878", 1, proof);
+} catch(e) {
+    console.log(`error verifying proof: ${e}`);
+}
+`````
+
 ### GetConsensusParameters()
 
 Returns an array with the different consensus parameters and their values.

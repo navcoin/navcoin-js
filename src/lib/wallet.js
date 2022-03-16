@@ -17,6 +17,9 @@ import { default as AddressTypes } from "./utils/address_types.js";
 export { default as OutputTypes } from "./utils/output_types.js";
 export { default as AddressTypes } from "./utils/address_types.js";
 
+import * as constants from "./utils/constants";
+import { sha256sha256 } from "@aguycalled/bitcore-lib/lib/crypto/hash";
+
 export * as xNavBootstrap from "./xnav_bootstrap.js";
 
 export const Init = async () => {
@@ -187,7 +190,10 @@ export class WalletFile extends events.EventEmitter {
 
     this.type = (await this.db.GetValue("walletType")) || "navcoin-js-v1";
 
-    this.electrumNodes = nodes[this.network];
+    this.electrumNodes =
+      options.nodes && option.nodes[this.network]
+        ? option.nodes[this.network]
+        : nodes[this.network];
 
     if (!this.electrumNodes.length) {
       throw new Error("Wrong network");
@@ -2767,6 +2773,78 @@ export class WalletFile extends events.EventEmitter {
       .reverse()
       .toString("hex");
     return ret;
+  }
+
+  async CreateNftProof(id, nftid, spendingPassword) {
+    let utxTok = await this.GetUtxos(OutputTypes.XNAV, undefined, id, nftid);
+
+    let nftInfo = await this.client.blockchain_token_getNft(id, nftid, true);
+
+    let hash = nftInfo.nfts[0].utxo.hash;
+    let n = nftInfo.nfts[0].utxo.n;
+
+    let prevOut = utxTok.filter(
+      (el) =>
+        parseInt(n) == parseInt(el.vout) && el.txid == nftInfo.nfts[0].utxo.hash
+    );
+
+    if (prevOut.length == 0) throw new Error("You don't own the NFT");
+
+    let mvk = this.mvk;
+    let msk = await this.GetMasterSpendKey(spendingPassword);
+
+    if (!(msk && mvk)) throw new Error("Wrong spending password");
+
+    blsct.RecoverBLSCTOutput(
+      prevOut[0].output,
+      mvk,
+      msk,
+      prevOut[0].accIndex[0],
+      prevOut[0].accIndex[1]
+    );
+
+    let msg =
+      constants.NFT_PROOF_PREFIX +
+      "_" +
+      id +
+      "_" +
+      nftid +
+      "_" +
+      hash +
+      "_" +
+      n;
+    let hashedMsg = sha256sha256(Buffer.from(msg, "utf-8"));
+
+    let sig = await blsct.AugmentedSign(prevOut[0].output.sigk, hashedMsg);
+
+    return { tokenId: id, nftId: nftid, sig: sig };
+  }
+
+  async VerifyNftProof(id, nftid, proof) {
+    let nftInfo = await this.client.blockchain_token_getNft(id, nftid, true);
+
+    let hash = nftInfo.nfts[0].utxo.hash;
+    let n = nftInfo.nfts[0].utxo.n;
+
+    let msg =
+      constants.NFT_PROOF_PREFIX +
+      "_" +
+      id +
+      "_" +
+      nftid +
+      "_" +
+      hash +
+      "_" +
+      n;
+    let hashedMsg = sha256sha256(Buffer.from(msg, "utf-8"));
+
+    let sigResult = await blsct.AugmentedVerify(
+      nftInfo.nfts[0].utxo.spendingKey,
+      hashedMsg,
+      proof.sig
+    );
+
+    return sigResult;
   }
 
   async MintNft(id, nftid, dest, metadata, spendingPassword) {
