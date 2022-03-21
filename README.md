@@ -676,12 +676,17 @@ try {
 
 Verifies an ownership proof for an specific NFT.
 
+Returns an object with the UTXO (`txid`:`nout`) used to verify the proof and the verification result (`result`)
+
 Example:
 
 `````javascript
 try {
     let proof = await wallet.CreateNftProof("adb78af655528f5323e1c4c241a3c4576634449a98162697fc74bd2041e3d878", 1, "my password");
-    let valid = await wallet.VerifyNftProof("adb78af655528f5323e1c4c241a3c4576634449a98162697fc74bd2041e3d878", 1, proof);
+    let verification = await wallet.VerifyNftProof("adb78af655528f5323e1c4c241a3c4576634449a98162697fc74bd2041e3d878", 1, proof);
+
+    console.log(`proof validity: ${verification.result}`);
+    console.log(`nft utxo: ${verification.txid}:${verification.nout}`);
 } catch(e) {
     console.log(`error verifying proof: ${e}`);
 }

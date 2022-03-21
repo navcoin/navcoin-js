@@ -2844,7 +2844,7 @@ export class WalletFile extends events.EventEmitter {
       proof.sig
     );
 
-    return sigResult;
+    return { txid: hash, nout: n, result: sigResult };
   }
 
   async MintNft(id, nftid, dest, metadata, spendingPassword) {
