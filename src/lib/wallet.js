@@ -1474,7 +1474,7 @@ export class WalletFile extends events.EventEmitter {
 
     if (!ret || !ret.metadata) {
       try {
-        let token = await this.client.blockchain_token_getToken(id);
+        let token = await this.client.blockchain_token_getNft(id, nftId);
 
         if (!token || (token && !token.nfts)) return undefined;
 
