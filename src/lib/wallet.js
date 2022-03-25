@@ -3,7 +3,7 @@ import * as Db from "./db/dexie.js";
 import * as events from "events";
 
 import { default as Mnemonic } from "bitcore-mnemonic";
-import { default as electrumMnemonic } from "electrum-mnemonic";
+import * as electrumMnemonic from "electrum-mnemonic";
 import { default as bitcore } from "@aguycalled/bitcore-lib";
 import { default as electrum } from "@aguycalled/electrum-client-js";
 import { default as _ } from "lodash";
