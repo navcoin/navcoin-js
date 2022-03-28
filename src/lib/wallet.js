@@ -1117,6 +1117,12 @@ export class WalletFile extends events.EventEmitter {
       for (let i in this.firstSynced) {
         this.firstSyncCompleted &= this.firstSynced[i];
       }
+
+      if (this.firstSyncCompleted) {
+        this.emit("sync_started");
+      }
+    } else {
+      this.emit("sync_started");
     }
   }
 

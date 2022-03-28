@@ -753,6 +753,14 @@ Example:
 wallet.on('no_servers_available', () => console.log(`none of the servers is available`));
 ````
 
+### sync_started
+
+Emitted when the wallet starts synchronizing the transaction history.
+
+````javascript
+wallet.on('sync_started', () => console.log('sync started'));
+````
+
 ### sync_finished
 
 Emitted when the wallet finished synchronizing the transaction history.
