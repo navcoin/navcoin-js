@@ -1,6 +1,6 @@
 {
   "name": "navcoin-js",
-  "version": "1.1.50",
+  "version": "1.1.51",
   "description": "Navcoin Javascript Library",
   "main": "./dist/index.js",
   "scripts": {
@@ -15,8 +15,8 @@
   "license": "ISC",
   "dependencies": {
     "@aguycalled/bitcore-lib": "^0.15.73",
-    "@aguycalled/bitcore-message": "^1.0.3",
-    "@aguycalled/bitcore-mnemonic": "^1.5.0",
+    "@aguycalled/bitcore-message": "^1.0.4",
+    "@aguycalled/bitcore-mnemonic": "^1.5.1",
     "@aguycalled/dexie-encrypted": "^2.0.4",
     "@aguycalled/electrum-client-js": "^0.1.8",
     "@aguycalled/noble-bls12-381": "^1.2.1",
