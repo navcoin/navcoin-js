@@ -2,12 +2,12 @@ import * as crypto from "crypto";
 import * as Db from "./db/dexie.js";
 import * as events from "events";
 
-import { default as Mnemonic } from "bitcore-mnemonic";
+import { default as Mnemonic } from "@aguycalled/bitcore-mnemonic";
 import * as electrumMnemonic from "electrum-mnemonic";
 import { default as bitcore } from "@aguycalled/bitcore-lib";
 import { default as electrum } from "@aguycalled/electrum-client-js";
 import { default as _ } from "lodash";
-import { default as Message } from "bitcore-message";
+import { default as Message } from "@aguycalled/bitcore-message";
 export { default as bitcore } from "@aguycalled/bitcore-lib";
 
 import { default as nodes } from "./nodes/index.js";
@@ -1176,7 +1176,10 @@ export class WalletFile extends events.EventEmitter {
 
       let pending = false;
 
-      if ((tx.pos < 2 && tip - tx.height < 120) || tx.height <= 0)
+      if (
+        (tx.pos < 2 && tip - tx.height < 120) ||
+        (tx.height <= 0 && type == OutputTypes.XNAV)
+      )
         pending = true;
 
       if (!pending) {
