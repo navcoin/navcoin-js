@@ -1483,7 +1483,10 @@ export class WalletFile extends events.EventEmitter {
 
     if (!ret || !ret.metadata) {
       try {
-        let token = await this.client.blockchain_token_getNft(id, nftId);
+        let token = await this.client.blockchain_token_getNft(
+          id,
+          parseInt(nftId)
+        );
 
         if (!token || (token && !token.nfts)) return undefined;
 
@@ -2787,7 +2790,11 @@ export class WalletFile extends events.EventEmitter {
   async CreateNftProof(id, nftid, spendingPassword) {
     let utxTok = await this.GetUtxos(OutputTypes.XNAV, undefined, id, nftid);
 
-    let nftInfo = await this.client.blockchain_token_getNft(id, nftid, true);
+    let nftInfo = await this.client.blockchain_token_getNft(
+      id,
+      parseInt(nftid),
+      true
+    );
 
     let hash = nftInfo.nfts[0].utxo.hash;
     let n = nftInfo.nfts[0].utxo.n;
@@ -2830,7 +2837,11 @@ export class WalletFile extends events.EventEmitter {
   }
 
   async VerifyNftProof(id, nftid, proof) {
-    let nftInfo = await this.client.blockchain_token_getNft(id, nftid, true);
+    let nftInfo = await this.client.blockchain_token_getNft(
+      id,
+      parseInt(nftid),
+      true
+    );
 
     let hash = nftInfo.nfts[0].utxo.hash;
     let n = nftInfo.nfts[0].utxo.n;
