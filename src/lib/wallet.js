@@ -1464,7 +1464,7 @@ export class WalletFile extends events.EventEmitter {
         return {
           id: token.id,
           name: token.name,
-          code: token.token,
+          code: token.token_code ? token.token_code : token.scheme,
           supply: token.max_supply,
           version: token.version,
           key: token.pubkey,
