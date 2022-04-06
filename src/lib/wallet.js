@@ -1226,7 +1226,7 @@ export class WalletFile extends events.EventEmitter {
           spendingPk: utxo.spendingPk,
         };
 
-        if (out.isCt()) {
+        if (out.isCt() || out.isNft()) {
           let hashid = new Buffer(blsct.GetHashId(out, this.mvk)).toString(
             "hex"
           );
@@ -1509,14 +1509,14 @@ export class WalletFile extends events.EventEmitter {
   }
 
   async AddOutput(outpoint, out) {
-    let amount = out.isCt() ? out.amount : out.satoshis;
+    let amount = out.isCt() || out.isNft() ? out.amount : out.satoshis;
     let label = out.isCt() ? out.memo : out.script.toAddress(this.network);
     let isCold =
       out.script.isColdStakingOutP2PKH() || out.script.isColdStakingV2Out();
 
     let type = 0x0;
 
-    if (out.isCt()) type |= OutputTypes.XNAV;
+    if (out.isCt() || out.isNft()) type |= OutputTypes.XNAV;
     else {
       if (isCold) type |= OutputTypes.STAKED;
       else type |= OutputTypes.NAV;
@@ -1543,7 +1543,7 @@ export class WalletFile extends events.EventEmitter {
         spendingPk = out.script.getPublicKeyHash().toString("hex");
       }
 
-      if (out.isCt()) {
+      if (out.isCt() || out.isNft()) {
         hashId = new Buffer(blsct.GetHashId(out, this.mvk)).toString("hex");
       }
 
@@ -1560,7 +1560,7 @@ export class WalletFile extends events.EventEmitter {
         hashId
       );
 
-      if (!out.isCt()) {
+      if (!(out.isCt() || out.isNft())) {
         await this.db.UseNavAddress(
           out.script.toAddress(this.network).toString()
         );
@@ -1661,7 +1661,7 @@ export class WalletFile extends events.EventEmitter {
         ).tx;
         let prevOut = prevTx.outputs[input.outputIndex];
 
-        if (prevOut.isCt()) {
+        if (prevOut.isCt() || prevOut.isNft()) {
           let hid = blsct.GetHashId(prevOut, this.mvk);
           if (hid) {
             let hashId = new Buffer(hid).toString("hex");
@@ -1768,7 +1768,7 @@ export class WalletFile extends events.EventEmitter {
       for (let i in tx.tx.outputs) {
         let out = tx.tx.outputs[i];
 
-        if (out.isCt()) {
+        if (out.isCt() || out.isNft()) {
           let hid = blsct.GetHashId(out, this.mvk);
           if (hid) {
             let hashId = new Buffer(hid).toString("hex");
@@ -2346,7 +2346,7 @@ export class WalletFile extends events.EventEmitter {
     for (const out_i in utx) {
       let out = utx[out_i];
 
-      if (!out.output.isCt()) continue;
+      if (!(out.output.isCt() || out.output.isNft())) continue;
 
       utxos.push(out);
     }
@@ -2397,7 +2397,7 @@ export class WalletFile extends events.EventEmitter {
     for (const out_i in utx) {
       let out = utx[out_i];
 
-      if (!out.output.isCt()) continue;
+      if (!(out.output.isCt() || out.output.isNft())) continue;
 
       utxos.push(out);
     }
@@ -2471,7 +2471,7 @@ export class WalletFile extends events.EventEmitter {
       for (const out_i in utx) {
         let out = utx[out_i];
 
-        if (!out.output.isCt()) continue;
+        if (!(out.output.isCt() || out.output.isNft())) continue;
 
         utxos.push(out);
       }
@@ -2479,7 +2479,7 @@ export class WalletFile extends events.EventEmitter {
       for (const out_i in utxTok) {
         let out = utxTok[out_i];
 
-        if (!out.output.isCt()) continue;
+        if (!(out.output.isCt() || out.output.isNft())) continue;
 
         utxosTok.push(out);
       }
@@ -3241,7 +3241,7 @@ export class WalletFile extends events.EventEmitter {
     for (let u in utxos) {
       let out = utxos[u];
 
-      if (out.output.isCt())
+      if (out.output.isCt() || out.output.isNft())
         throw new TypeError("NavSend can only spend nav outputs");
 
       let prevtx = await this.GetTx(out.txid);
