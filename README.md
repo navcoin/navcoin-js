@@ -649,7 +649,7 @@ Example:
 
 ```javascript
 try {
-    // Create buy order to buy an NFT mint in exchange of 10 xNAV payment
+    // Create buy order to buy an NFT mint in exchange of 10 xNAV payment and verify its correctness
     let fValid = await wallet.VerifyOrder(await wallet.CreateSellNftOrder("adb78af655528f5323e1c4c241a3c4576634449a98162697fc74bd2041e3d878", 4, "xNUBDkjEKRRxXfN3nAbeBZLWbePjswoKi9PHboXfJzbqmg6heMbxJhhovMmebqN96AaXyFYsZFfGXaGVptFnPzyQjGE8bbo83kEZG5jUXbKoaJPC4ztTg1zw3dUyavXNVVUoeuDB3Yu", 10*1e8))
 } catch(e) {
     console.log(`error validating order: ${e}`);
