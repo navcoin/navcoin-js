@@ -72,10 +72,11 @@ export default class Db extends events.EventEmitter {
   }
 
   Close() {
-    if (!this.db) return;
+    if (this.db) this.db.close();
+    if (this.dbTx) this.dbTx.close();
+    delete this.db;
+    delete this.dbTx;
 
-    this.db.close();
-    this.dbTx.close();
     this.emit("db_closed");
   }
 
@@ -575,6 +576,8 @@ export default class Db extends events.EventEmitter {
   }
 
   async GetLabel(address) {
+    if (!this.db) return;
+
     let label = await this.db.labels
       .get(address)
       .catch("DatabaseClosedError", (e) => {
@@ -710,7 +713,7 @@ export default class Db extends events.EventEmitter {
   }
 
   async GetTx(hash) {
-    if (!this.db) return;
+    if (!this.dbTx) return;
 
     return await this.dbTx.txs.get(hash).catch("DatabaseClosedError", (e) => {
       console.error("DatabaseClosed error: " + e.message);
@@ -820,7 +823,7 @@ export default class Db extends events.EventEmitter {
   }
 
   async AddTx(tx) {
-    if (!this.db) return;
+    if (!this.dbTx) return;
 
     tx.hash = tx.txid;
     delete tx.tx;
@@ -835,7 +838,7 @@ export default class Db extends events.EventEmitter {
   }
 
   async AddTxKeys(tx) {
-    if (!this.db) return;
+    if (!this.dbTx) return;
 
     tx.hash = tx.txidkeys;
     try {
@@ -872,7 +875,7 @@ export default class Db extends events.EventEmitter {
   }
 
   async RemoveTxCandidate(input) {
-    if (!this.db) return;
+    if (!this.dbTx) return;
 
     await this.dbTx.candidates
       .where({ input: input })
@@ -883,7 +886,7 @@ export default class Db extends events.EventEmitter {
   }
 
   async GetTxKeys(hash) {
-    if (!this.db) return;
+    if (!this.dbTx) return;
 
     return await this.dbTx.txKeys
       .get(hash)

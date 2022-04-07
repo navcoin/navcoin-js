@@ -940,9 +940,9 @@ export class WalletFile extends events.EventEmitter {
     if (this.client) this.client.close();
     this.connected = false;
     this.queue.stop();
-    this.emit("disconnected");
 
     delete this.client;
+    this.emit("disconnected");
   }
 
   async ReceivedScriptHashStatus(s, status) {
@@ -1023,6 +1023,9 @@ export class WalletFile extends events.EventEmitter {
             currentLastHeight - 10
           }`
         );
+
+        if (!this.client) return;
+
         newHistory = await this.client.blockchain_scripthash_getHistory(
           scripthash,
           Math.max(0, currentLastHeight - 10)
@@ -1446,6 +1449,8 @@ export class WalletFile extends events.EventEmitter {
   async GetTokenInfo(id) {
     let ret = await this.db.GetTokenInfo(id);
 
+    if (!this.client) return {};
+
     if (!ret || !ret.name) {
       try {
         let token = await this.client.blockchain_token_getToken(id);
@@ -1480,6 +1485,8 @@ export class WalletFile extends events.EventEmitter {
 
   async GetNftInfo(id, nftId) {
     let ret = await this.db.GetNftInfo(id, nftId);
+
+    if (!this.client) return;
 
     if (!ret || !ret.metadata) {
       try {
@@ -2576,6 +2583,7 @@ export class WalletFile extends events.EventEmitter {
   }
 
   async SendTransactionSingle(tx) {
+    if (!this.client) return;
     let ret = await this.client.blockchain_transaction_broadcast(tx);
     let txObj = bitcore.Transaction(tx);
     for (var i in tx.inputs) {
@@ -2788,6 +2796,8 @@ export class WalletFile extends events.EventEmitter {
   }
 
   async CreateNftProof(id, nftid, spendingPassword) {
+    if (!this.client) throw new Error("Not connected");
+
     let utxTok = await this.GetUtxos(OutputTypes.XNAV, undefined, id, nftid);
 
     let nftInfo = await this.client.blockchain_token_getNft(
@@ -2837,6 +2847,8 @@ export class WalletFile extends events.EventEmitter {
   }
 
   async VerifyNftProof(id, nftid, proof) {
+    if (!this.client) throw new Error("Not connected");
+
     let nftInfo = await this.client.blockchain_token_getNft(
       id,
       parseInt(nftid),
