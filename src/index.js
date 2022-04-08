@@ -1,1 +1,1 @@
-export var version = "1.1.66";export * as wallet from "./lib/wallet.js";
+export var version = "1.1.67";export * as wallet from "./lib/wallet.js";
