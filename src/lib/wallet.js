@@ -873,6 +873,7 @@ export class WalletFile extends events.EventEmitter {
 
       try {
         this.firstSynced[s] = false;
+        if (!this.client) continue;
         let currentStatus = await this.client.blockchain_scripthash_subscribe(
           s
         );
@@ -2553,7 +2554,7 @@ export class WalletFile extends events.EventEmitter {
   async VerifyOrder(order) {
     if (!this.client) return;
 
-    const tx = bitcore.Transaction(order.tx);
+    const tx = bitcore.Transaction(order.tx[0]);
 
     let valueKey;
 
