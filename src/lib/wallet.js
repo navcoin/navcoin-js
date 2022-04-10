@@ -1673,8 +1673,19 @@ export class WalletFile extends events.EventEmitter {
           let hid = blsct.GetHashId(prevOut, this.mvk);
           if (hid) {
             let hashId = new Buffer(hid).toString("hex");
-            if (await this.db.GetKey(hashId)) {
-              if (blsct.RecoverBLSCTOutput(prevOut, this.mvk)) {
+            let acc = await this.db.GetKey(hashId);
+            if (acc != undefined) {
+              if (
+                blsct.RecoverBLSCTOutput(
+                  prevOut,
+                  this.mvk,
+                  undefined,
+                  acc[0],
+                  acc[1],
+                  prevOut.tokenId,
+                  prevOut.tokenNftId
+                )
+              ) {
                 mine = true;
                 let newOutput = await this.AddOutput(
                   `${input.prevTxId}:${input.outputIndex}`,
@@ -1780,15 +1791,16 @@ export class WalletFile extends events.EventEmitter {
           let hid = blsct.GetHashId(out, this.mvk);
           if (hid) {
             let hashId = new Buffer(hid).toString("hex");
+            let acc = await this.db.GetKey(hashId);
 
-            if ((await this.db.GetKey(hashId)) != undefined) {
+            if (acc != undefined) {
               if (
                 blsct.RecoverBLSCTOutput(
                   out,
                   this.mvk,
                   undefined,
-                  undefined,
-                  undefined,
+                  acc[0],
+                  acc[1],
                   out.tokenId,
                   out.tokenNftId
                 )
