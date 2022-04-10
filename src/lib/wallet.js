@@ -2454,7 +2454,8 @@ export class WalletFile extends events.EventEmitter {
     vData = new Buffer([]),
     extraKey = undefined,
     ignoreInputs = false,
-    ignoreFees = false
+    ignoreFees = false,
+    aggFee = 0
   ) {
     if (amount < 0) throw new TypeError("Amount must be positive");
 
@@ -2531,7 +2532,8 @@ export class WalletFile extends events.EventEmitter {
           false,
           new Buffer(new Uint8Array(32)),
           -1,
-          txTok.feeAmount
+          txTok.feeAmount,
+          aggFee
         )
       : undefined;
 
