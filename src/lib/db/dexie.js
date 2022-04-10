@@ -655,7 +655,9 @@ export default class Db extends events.EventEmitter {
     addresses_in,
     addresses_out,
     name,
-    code
+    code,
+    tokenId,
+    tokenNftId
   ) {
     if (!this.db) return;
 
@@ -675,6 +677,8 @@ export default class Db extends events.EventEmitter {
         addresses_out: addresses_out,
         token_name: name,
         token_code: code,
+        token_id: tokenId,
+        nft_id: tokenNftId,
       })
       .catch("DatabaseClosedError", (e) => {
         console.error("DatabaseClosed error: " + e.message);

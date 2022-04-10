@@ -1975,12 +1975,14 @@ export class WalletFile extends events.EventEmitter {
       if (mustNotify && mine) {
         for (let d in deltaXNav) {
           if (deltaXNav[d] != 0 || memos.out.length) {
+            let token = d.split(":")[0];
+            let nftid = d.split(":")[1];
             let fisxnav =
-              d.split(":")[0] ==
+              token ==
               "0000000000000000000000000000000000000000000000000000000000000000";
-            let fistoken = d.split(":")[1] == "-1";
+            let fistoken = nftid == "-1";
             let info = !fisxnav
-              ? await this.GetTokenInfo(d.split(":")[0])
+              ? await this.GetTokenInfo(token)
               : { name: "xnav", code: "xnav" };
             this.emit("new_tx", {
               txid: tx.txid,
@@ -1994,6 +1996,8 @@ export class WalletFile extends events.EventEmitter {
               timestamp: tx.tx.time,
               memos: memos,
               strdzeel: tx.strdzeel,
+              token_id: token,
+              nft_id: nftid,
             });
             await this.db.AddWalletTx(
               tx.txid,
@@ -2008,7 +2012,9 @@ export class WalletFile extends events.EventEmitter {
               addressesIn,
               addressesOut,
               fisxnav ? "xnav" : info.name,
-              fisxnav ? "xnav" : fistoken ? info.code : info.name
+              fisxnav ? "xnav" : fistoken ? info.code : info.name,
+              token,
+              nftid
             );
           }
         }
