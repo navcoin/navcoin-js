@@ -870,6 +870,8 @@ export class WalletFile extends events.EventEmitter {
     }
 
     this.emit("bootstrap_finished");
+
+    if (txs.list.length == 0) this.emit("sync_finished");
   }
 
   async SyncTxHashes(staking = undefined, txs) {
