@@ -8,9 +8,10 @@ const repl = require("repl");
 const walletFile = undefined; // File name of the wallet database, persistence using dexie db backend only works on the browser
 const password = undefined; // Password used to encrypt and open the wallet database
 const spendingPassword = undefined; // Password used to send transactions
-const mnemonic = undefined; // Mnemonic to import 'problem shrimp bottom mouse canyon moment dirt beyond cage hazard phrase animal';
+const mnemonic =
+  "bracket shrug kit web three run stem resist barrel spring bounce clock";
 const type = undefined; // Wallet type next, navcoin-core or navcoin-js-v1
-const zapwallettxes = false; // Should the wallet be cleared of its history?
+const zapwallettxes = true; // Should the wallet be cleared of its history?
 const log = true; // Log to console
 const network = "testnet";
 
@@ -62,9 +63,25 @@ njs.wallet.Init().then(async () => {
     process.exit(1);
   });
 
+  wallet.on("sync_started", async () => {
+    console.log("sync_started");
+  });
+
   wallet.on("sync_finished", async () => {
     console.log("sync_finished");
     console.log(`Balance ${JSON.stringify(await wallet.GetBalance())}`);
+  });
+
+  wallet.on("bootstrap_started", () => {
+    console.log("bootstrap_started");
+  });
+
+  wallet.on("bootstrap_progress", (count) => {
+    //console.log("bootstrap_progress", count);
+  });
+
+  wallet.on("bootstrap_finished", () => {
+    console.log("bootstrap_finished");
   });
 
   wallet.on("new_tx", async (list) => {

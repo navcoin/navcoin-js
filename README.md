@@ -768,6 +768,30 @@ Example:
 wallet.on('no_servers_available', () => console.log(`none of the servers is available`));
 ````
 
+### bootstrap_started
+
+Emitted when the wallet starts the bootstrap process
+
+````javascript
+wallet.on('bootstrap_started', () => console.log('bootstrap started'));
+````
+
+### bootstrap_finished
+
+Emitted when the wallet finished bootstrapping
+
+````javascript
+wallet.on('bootstrap_finished', () => console.log('bootstrap complete'));
+````
+
+### bootstrap_progress
+
+Emitted to update about the bootstrap progress, passes the number of transactions on queue.
+
+````javascript
+wallet.on('bootstrap_progress', (total) => console.log(`bootstrap status: ${count} txs`));
+````
+
 ### sync_started
 
 Emitted when the wallet starts synchronizing the transaction history.

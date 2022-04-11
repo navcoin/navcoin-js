@@ -1,6 +1,7 @@
 import * as crypto from "crypto";
 import * as Db from "./db/dexie.js";
 import * as events from "events";
+import { default as List } from "./utils/list.js";
 
 import { default as Mnemonic } from "@aguycalled/bitcore-mnemonic";
 import * as electrumMnemonic from "electrum-mnemonic";
@@ -58,6 +59,10 @@ export class WalletFile extends events.EventEmitter {
 
     this.queue.on("end", () => {
       self.emit("sync_finished");
+    });
+
+    this.queue.on("started", () => {
+      self.emit("sync_started");
     });
 
     let secret = options.password || "secret navcoinjs";
@@ -850,13 +855,31 @@ export class WalletFile extends events.EventEmitter {
   }
 
   async Sync(staking = undefined) {
+    let txs = new List();
+
+    this.emit("bootstrap_started");
+
+    txs.on("push", () => {
+      this.emit("bootstrap_progress", txs.list.length);
+    });
+
+    await this.SyncTxHashes(staking, txs);
+
+    for (let tx of txs.list) {
+      await this.QueueTxKeys(tx[0], tx[1], tx[2]);
+    }
+
+    this.emit("bootstrap_finished");
+  }
+
+  async SyncTxHashes(staking = undefined, txs) {
     let scriptHashes = await this.GetScriptHashes(staking);
 
     if (!this.alreadyQueued && !staking) {
       let pending = await this.db.GetPendingTxs();
 
       for (let j in pending) {
-        await this.QueueTxKeys(pending[j].tx_hash, pending[j].height, true);
+        txs.push([pending[j].tx_hash, pending[j].height, true]);
       }
 
       this.Log(`Queuing ${pending.length} pending transactions`);
@@ -877,7 +900,7 @@ export class WalletFile extends events.EventEmitter {
         let currentStatus = await this.client.blockchain_scripthash_subscribe(
           s
         );
-        await this.ReceivedScriptHashStatus(s, currentStatus);
+        await this.ReceivedScriptHashStatus(s, currentStatus, txs);
       } catch (e) {
         if (
           e ==
@@ -886,7 +909,7 @@ export class WalletFile extends events.EventEmitter {
           break;
         console.log("ReceivedScriptHashStatus", e);
         await this.ManageElectrumError(e);
-        return await this.Sync(staking);
+        return await this.SyncTxHashes(staking, txs);
       }
     }
 
@@ -895,7 +918,7 @@ export class WalletFile extends events.EventEmitter {
 
       for (let k in stakingAddresses) {
         let address = stakingAddresses[k];
-        await this.Sync(address);
+        await this.SyncTxHashes(address, txs);
       }
     }
   }
@@ -946,7 +969,7 @@ export class WalletFile extends events.EventEmitter {
     this.emit("disconnected");
   }
 
-  async ReceivedScriptHashStatus(s, status) {
+  async ReceivedScriptHashStatus(s, status, txs) {
     let prevStatus = await this.GetStatusHashForScriptHash(s);
 
     if (status && status !== prevStatus) {
@@ -954,13 +977,17 @@ export class WalletFile extends events.EventEmitter {
 
       this.Log(`Received new status ${status} for ${s}. Syncing.`);
 
-      this.queue.add(
-        this,
-        this.SyncScriptHash,
-        [s],
-        true,
-        !this.firstSyncCompleted
-      );
+      if (!txs) {
+        this.queue.add(
+          this,
+          this.SyncScriptHash,
+          [s],
+          true,
+          !this.firstSyncCompleted
+        );
+      } else {
+        await this.SyncScriptHash(s, txs);
+      }
     } else {
       this.firstSynced[s] = true;
 
@@ -970,15 +997,11 @@ export class WalletFile extends events.EventEmitter {
         for (let i in this.firstSynced) {
           this.firstSyncCompleted &= this.firstSynced[i];
         }
-
-        if (this.firstSyncCompleted) {
-          this.emit("sync_finished");
-        }
       }
     }
   }
 
-  async SyncScriptHash(scripthash) {
+  async SyncScriptHash(scripthash, txs) {
     let currentHistory = [];
     let prevMaxHeight = -10;
     let lb = this.lastBlock + 0;
@@ -1080,9 +1103,17 @@ export class WalletFile extends events.EventEmitter {
       await this.db.BulkRawInsertHistory(toAddBulk);
 
       for (var i in toAddBulk) {
-        await this.QueueTxKeys(toAddBulk[i].tx_hash, toAddBulk[i].height, true);
+        if (txs) {
+          txs.push([toAddBulk[i].tx_hash, toAddBulk[i].height, true]);
+        } else {
+          await this.QueueTxKeys(
+            toAddBulk[i].tx_hash,
+            toAddBulk[i].height,
+            true
+          );
 
-        if (i % 100 == 0) this.queue.emitProgress();
+          if (i % 100 == 0) this.queue.emitProgress();
+        }
       }
 
       toAddBulk = [];
@@ -1123,10 +1154,10 @@ export class WalletFile extends events.EventEmitter {
       }
 
       if (this.firstSyncCompleted) {
-        this.emit("sync_started");
+        //this.emit("sync_started");
       }
     } else {
-      this.emit("sync_started");
+      //this.emit("sync_started");
     }
   }
 
