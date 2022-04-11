@@ -77,7 +77,7 @@ njs.wallet.Init().then(async () => {
   });
 
   wallet.on("bootstrap_progress", (count) => {
-    //console.log("bootstrap_progress", count);
+    console.log("bootstrap_progress", count);
   });
 
   wallet.on("bootstrap_finished", () => {

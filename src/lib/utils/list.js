@@ -7,8 +7,8 @@ export default class extends events.EventEmitter {
     this.list = [];
   }
 
-  push(el) {
+  push(el, emit = true) {
     this.list.push(el);
-    this.emit("push");
+    if (emit) this.emit("push");
   }
 }

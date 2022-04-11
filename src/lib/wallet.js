@@ -879,8 +879,10 @@ export class WalletFile extends events.EventEmitter {
       let pending = await this.db.GetPendingTxs();
 
       for (let j in pending) {
-        txs.push([pending[j].tx_hash, pending[j].height, true]);
+        txs.push([pending[j].tx_hash, pending[j].height, true], false);
       }
+
+      this.emit("bootstrap_progress", txs.list.length);
 
       this.Log(`Queuing ${pending.length} pending transactions`);
       this.alreadyQueued = true;
@@ -1104,7 +1106,7 @@ export class WalletFile extends events.EventEmitter {
 
       for (var i in toAddBulk) {
         if (txs) {
-          txs.push([toAddBulk[i].tx_hash, toAddBulk[i].height, true]);
+          txs.push([toAddBulk[i].tx_hash, toAddBulk[i].height, true], false);
         } else {
           await this.QueueTxKeys(
             toAddBulk[i].tx_hash,
@@ -1114,6 +1116,10 @@ export class WalletFile extends events.EventEmitter {
 
           if (i % 100 == 0) this.queue.emitProgress();
         }
+      }
+
+      if (txs) {
+        this.emit("bootstrap_progress", txs.list.length);
       }
 
       toAddBulk = [];
