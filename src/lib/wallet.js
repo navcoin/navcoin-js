@@ -143,7 +143,7 @@ export class WalletFile extends events.EventEmitter {
       if (this.type === "watch" && options.watch) {
         await this.ImportWatchAddress(options.watch);
 
-        let masterKey = new Mnemonic(mnemonic).toHDPrivateKey();
+        let masterKey = new Mnemonic(mnemonic).toHDPrivateKey("", this.network);
 
         await this.SetMasterKey(masterKey, this.spendingPassword);
       } else if (this.type === "next") {
@@ -154,7 +154,7 @@ export class WalletFile extends events.EventEmitter {
 
         await this.ImportPrivateKey(pk, this.spendingPassword);
 
-        let masterKey = new Mnemonic(mnemonic).toHDPrivateKey();
+        let masterKey = new Mnemonic(mnemonic).toHDPrivateKey("", this.network);
 
         await this.SetMasterKey(masterKey, this.spendingPassword);
       } else if (this.type === "navcoin-core") {
@@ -170,7 +170,7 @@ export class WalletFile extends events.EventEmitter {
 
         await this.SetMasterKey(masterKey, this.spendingPassword);
       } else {
-        let masterKey = new Mnemonic(mnemonic).toHDPrivateKey();
+        let masterKey = new Mnemonic(mnemonic).toHDPrivateKey("", this.network);
 
         await this.SetMasterKey(masterKey, this.spendingPassword);
       }
