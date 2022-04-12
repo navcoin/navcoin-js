@@ -9,6 +9,8 @@ module.exports = {
     entry: './src/index.js',
     output: {
         filename: 'bundle.js',
+        libraryTarget: 'umd',
+        library:'umd',
         path: DIST,
         publicPath: DIST,
     },
