@@ -11,14 +11,14 @@
     </header>
 </main>
 
-<script src="bundle.js"></script>
+<script src="../dist/bundle.js"></script>
 <script>
     const njs=umd.njs;
     njs.wallet.Init().then(async () => {
     const wallet = new njs.wallet.WalletFile({file: 'wallet2.db'})
     console.log('loaded')
 
-    wallet.on('new_mnemonic', (mnemonic) => alert(`xwallet created with mnemonic ${mnemonic} - please back it up!`));
+    wallet.on('new_mnemonic', (mnemonic) => alert(`wallet created with mnemonic ${mnemonic} - please back it up!`));
 
     wallet.on('loaded', async () => {
         console.log('wallet loaded')
@@ -46,7 +46,6 @@
 
     await wallet.Load()
 })
-
 </script>
 </body>
 </html>
