@@ -287,7 +287,7 @@ export default class Db extends events.EventEmitter {
   }
 
   async GetNavAddresses() {
-    if (!this.db) return;
+    if (!this.db) return [];
 
     return await this.db.keys
       .where({ type: AddressTypes.NAV })
@@ -298,7 +298,7 @@ export default class Db extends events.EventEmitter {
   }
 
   async GetStakingAddresses() {
-    if (!this.db) return;
+    if (!this.db) return [];
 
     return await this.db.stakingAddresses
       .toArray()
@@ -386,7 +386,7 @@ export default class Db extends events.EventEmitter {
   }
 
   async GetXNavReceivingAddresses(all) {
-    if (!this.db) return;
+    if (!this.db) return [];
 
     return await this.db.keys
       .where({ type: AddressTypes.XNAV })
@@ -397,7 +397,7 @@ export default class Db extends events.EventEmitter {
   }
 
   async GetNavReceivingAddresses(all) {
-    if (!this.db) return;
+    if (!this.db) return [];
 
     return await this.db.keys
       .where({ type: AddressTypes.NAV })
@@ -588,7 +588,7 @@ export default class Db extends events.EventEmitter {
   }
 
   async GetScriptHashHistory(scriptHash) {
-    if (!this.db) return;
+    if (!this.db) return [];
 
     try {
       return await this.db.scriptHistories
@@ -618,7 +618,7 @@ export default class Db extends events.EventEmitter {
   }
 
   async GetWalletHistory() {
-    if (!this.db) return;
+    if (!this.db) return [];
 
     let history = await this.db.walletTxs
       .toArray()
@@ -686,7 +686,7 @@ export default class Db extends events.EventEmitter {
   }
 
   async GetUtxos(forBalance = false) {
-    if (!this.db) return;
+    if (!this.db) return [];
 
     let ret = await this.db.outPoints.where({ spentIn: "" });
 
@@ -757,7 +757,7 @@ export default class Db extends events.EventEmitter {
   }
 
   async GetUtxo(outPoint) {
-    if (!this.db) return;
+    if (!this.db) return {};
 
     return await this.db.outPoints
       .get(outPoint)
