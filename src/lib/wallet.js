@@ -92,6 +92,7 @@ export class WalletFile extends events.EventEmitter {
   }
 
   CloseDb() {
+    this.removeAllListeners();
     this.db.Close();
   }
 
