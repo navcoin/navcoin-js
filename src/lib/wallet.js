@@ -3524,8 +3524,8 @@ export class WalletFile extends events.EventEmitter {
 
     if (!ret) return;
 
-    return ret.substr(0, 4) == "xprv"
-      ? bitcore.HDPrivateKey(ret).privateKey
+    return ret.length > 100
+      ? bitcore.HDPrivateKey(ret, this.network).privateKey
       : bitcore.PrivateKey(ret);
   }
 
