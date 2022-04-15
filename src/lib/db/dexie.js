@@ -421,7 +421,7 @@ export default class Db extends events.EventEmitter {
   }
 
   async GetPendingTxs(downloaded = 0) {
-    if (!this.db) return;
+    if (!this.db) return [];
 
     return await this.db.scriptHistories
       .where({ fetched: downloaded })
