@@ -715,6 +715,12 @@ export class WalletFile extends events.EventEmitter {
 
     try {
       await this.client.connect("navcoin-js", "1.5");
+      this.emit(
+        "connected",
+        this.electrumNodes[this.electrumNodeIndex].host +
+          ":" +
+          this.electrumNodes[this.electrumNodeIndex].port
+      );
       this.connected = true;
 
       if (resetFailed) this.failedConnections = 0;
@@ -797,13 +803,6 @@ export class WalletFile extends events.EventEmitter {
       );
       return await this.ManageElectrumError(e);
     }
-
-    this.emit(
-      "connected",
-      this.electrumNodes[this.electrumNodeIndex].host +
-        ":" +
-        this.electrumNodes[this.electrumNodeIndex].port
-    );
 
     let self = this;
 
@@ -1682,6 +1681,14 @@ export class WalletFile extends events.EventEmitter {
 
     if (!requestInputs) return tx;
 
+    await this.ProcessTx(tx, mustNotify);
+
+    await this.db.MarkAsFetched(hash);
+
+    return tx;
+  }
+
+  async ProcessTx(tx, mustNotify = true) {
     let mine = false;
     let memos = { in: [], out: [] };
 
@@ -1691,186 +1698,158 @@ export class WalletFile extends events.EventEmitter {
     let addressesIn = { spending: [], staking: [] };
     let addressesOut = { spending: [], staking: [] };
 
-    if (requestInputs) {
-      for (let i in tx.tx.inputs) {
-        if (typeof inMine !== "undefined" && !inMine[i]) continue;
+    for (let i in tx.tx.inputs) {
+      if (typeof inMine !== "undefined" && !inMine[i]) continue;
 
-        let input = tx.tx.inputs[i].toObject();
+      let input = tx.tx.inputs[i].toObject();
 
-        if (
-          input.prevTxId ==
-          "0000000000000000000000000000000000000000000000000000000000000000"
-        )
-          continue;
+      if (
+        input.prevTxId ==
+        "0000000000000000000000000000000000000000000000000000000000000000"
+      )
+        continue;
 
-        let prevTx = (
-          await this.GetTx(input.prevTxId, undefined, undefined, false)
-        ).tx;
-        let prevOut = prevTx.outputs[input.outputIndex];
+      let prevTx = (
+        await this.GetTx(input.prevTxId, undefined, undefined, false)
+      ).tx;
+      let prevOut = prevTx.outputs[input.outputIndex];
 
-        if (prevOut.isCt() || prevOut.isNft()) {
-          let hid = blsct.GetHashId(prevOut, this.mvk);
-          if (hid) {
-            let hashId = new Buffer(hid).toString("hex");
-            let acc = await this.db.GetKey(hashId);
-            if (acc != undefined) {
+      if (prevOut.isCt() || prevOut.isNft()) {
+        let hid = blsct.GetHashId(prevOut, this.mvk);
+        if (hid) {
+          let hashId = new Buffer(hid).toString("hex");
+          let acc = await this.db.GetKey(hashId);
+          if (acc != undefined) {
+            if (
+              blsct.RecoverBLSCTOutput(
+                prevOut,
+                this.mvk,
+                undefined,
+                acc[0],
+                acc[1],
+                prevOut.tokenId,
+                prevOut.tokenNftId
+              )
+            ) {
+              mine = true;
+              let newOutput = await this.AddOutput(
+                `${input.prevTxId}:${input.outputIndex}`,
+                prevOut,
+                prevTx.height
+              );
+              let newSpend = await this.Spend(
+                `${input.prevTxId}:${input.outputIndex}`,
+                `${tx.txid}:${i}`
+              );
+              if (newSpend || newOutput) mustNotify = true;
               if (
-                blsct.RecoverBLSCTOutput(
-                  prevOut,
-                  this.mvk,
-                  undefined,
-                  acc[0],
-                  acc[1],
-                  prevOut.tokenId,
-                  prevOut.tokenNftId
-                )
-              ) {
-                mine = true;
-                let newOutput = await this.AddOutput(
-                  `${input.prevTxId}:${input.outputIndex}`,
-                  prevOut,
-                  prevTx.height
-                );
-                let newSpend = await this.Spend(
-                  `${input.prevTxId}:${input.outputIndex}`,
-                  `${tx.txid}:${i}`
-                );
-                if (newSpend || newOutput) mustNotify = true;
-                if (
-                  !deltaXNav[
-                    prevOut.tokenId.toString("hex") + ":" + prevOut.tokenNftId
-                  ]
-                )
-                  deltaXNav[
-                    prevOut.tokenId.toString("hex") + ":" + prevOut.tokenNftId
-                  ] = 0;
+                !deltaXNav[
+                  prevOut.tokenId.toString("hex") + ":" + prevOut.tokenNftId
+                ]
+              )
                 deltaXNav[
                   prevOut.tokenId.toString("hex") + ":" + prevOut.tokenNftId
-                ] -= prevOut.amount;
-                memos.in.push(prevOut.memo);
-              }
+                ] = 0;
+              deltaXNav[
+                prevOut.tokenId.toString("hex") + ":" + prevOut.tokenNftId
+              ] -= prevOut.amount;
+              memos.in.push(prevOut.memo);
             }
-          }
-        } else if (
-          prevOut.script.isPublicKeyHashOut() ||
-          prevOut.script.isPublicKeyOut()
-        ) {
-          let hashPk = prevOut.script.isPublicKeyOut()
-            ? ripemd160(sha256(prevOut.script.getPublicKey()))
-            : prevOut.script.getPublicKeyHash();
-          let hashId = new Buffer(hashPk).toString("hex");
-
-          let add = bitcore
-            .Address(hashPk, this.network, "pubkeyhash")
-            .toString();
-          if (addressesIn.spending.indexOf(add) == -1)
-            addressesIn.spending.push(add);
-
-          if (await this.db.GetKey(hashId)) {
-            mine = true;
-            let newOutput = await this.AddOutput(
-              `${input.prevTxId}:${input.outputIndex}`,
-              prevOut,
-              prevTx.height
-            );
-            let newSpend = await this.Spend(
-              `${input.prevTxId}:${input.outputIndex}`,
-              `${tx.txid}:${i}`
-            );
-            if (newSpend || newOutput) mustNotify = true;
-            deltaNav -= prevOut.satoshis;
-          }
-        } else if (
-          prevOut.script.isColdStakingOutP2PKH() ||
-          prevOut.script.isColdStakingV2Out()
-        ) {
-          let hashPk = prevOut.script.getPublicKeyHash();
-          let hashId = new Buffer(hashPk).toString("hex");
-
-          let addSp = bitcore
-            .Address(hashPk, this.network, "pubkeyhash")
-            .toString();
-          let addSt = bitcore
-            .Address(
-              prevOut.script.getStakingPublicKeyHash(),
-              this.network,
-              "pubkeyhash"
-            )
-            .toString();
-
-          if (addressesIn.spending.indexOf(addSp) == -1) {
-            addressesIn.spending.push(addSp);
-          }
-
-          if (addressesIn.staking.indexOf(addSt) == -1) {
-            addressesIn.staking.push(addSt);
-          }
-
-          if (await this.db.GetKey(hashId)) {
-            mine = true;
-            let newOutput = await this.AddOutput(
-              `${input.prevTxId}:${input.outputIndex}`,
-              prevOut,
-              prevTx.height
-            );
-            let newSpend = await this.Spend(
-              `${input.prevTxId}:${input.outputIndex}`,
-              `${tx.txid}:${i}`
-            );
-            if (newSpend || newOutput) mustNotify = true;
-            deltaCold -= prevOut.satoshis;
           }
         }
+      } else if (
+        prevOut.script.isPublicKeyHashOut() ||
+        prevOut.script.isPublicKeyOut()
+      ) {
+        let hashPk = prevOut.script.isPublicKeyOut()
+          ? ripemd160(sha256(prevOut.script.getPublicKey()))
+          : prevOut.script.getPublicKeyHash();
+        let hashId = new Buffer(hashPk).toString("hex");
+
+        let add = bitcore
+          .Address(hashPk, this.network, "pubkeyhash")
+          .toString();
+        if (addressesIn.spending.indexOf(add) == -1)
+          addressesIn.spending.push(add);
+
+        if (await this.db.GetKey(hashId)) {
+          mine = true;
+          let newOutput = await this.AddOutput(
+            `${input.prevTxId}:${input.outputIndex}`,
+            prevOut,
+            prevTx.height
+          );
+          let newSpend = await this.Spend(
+            `${input.prevTxId}:${input.outputIndex}`,
+            `${tx.txid}:${i}`
+          );
+          if (newSpend || newOutput) mustNotify = true;
+          deltaNav -= prevOut.satoshis;
+        }
+      } else if (
+        prevOut.script.isColdStakingOutP2PKH() ||
+        prevOut.script.isColdStakingV2Out()
+      ) {
+        let hashPk = prevOut.script.getPublicKeyHash();
+        let hashId = new Buffer(hashPk).toString("hex");
+
+        let addSp = bitcore
+          .Address(hashPk, this.network, "pubkeyhash")
+          .toString();
+        let addSt = bitcore
+          .Address(
+            prevOut.script.getStakingPublicKeyHash(),
+            this.network,
+            "pubkeyhash"
+          )
+          .toString();
+
+        if (addressesIn.spending.indexOf(addSp) == -1) {
+          addressesIn.spending.push(addSp);
+        }
+
+        if (addressesIn.staking.indexOf(addSt) == -1) {
+          addressesIn.staking.push(addSt);
+        }
+
+        if (await this.db.GetKey(hashId)) {
+          mine = true;
+          let newOutput = await this.AddOutput(
+            `${input.prevTxId}:${input.outputIndex}`,
+            prevOut,
+            prevTx.height
+          );
+          let newSpend = await this.Spend(
+            `${input.prevTxId}:${input.outputIndex}`,
+            `${tx.txid}:${i}`
+          );
+          if (newSpend || newOutput) mustNotify = true;
+          deltaCold -= prevOut.satoshis;
+        }
       }
+    }
 
-      for (let i in tx.tx.outputs) {
-        let out = tx.tx.outputs[i];
+    for (let i in tx.tx.outputs) {
+      let out = tx.tx.outputs[i];
 
-        if (out.isCt() || out.isNft()) {
-          let hid = blsct.GetHashId(out, this.mvk);
-          if (hid) {
-            let hashId = new Buffer(hid).toString("hex");
-            let acc = await this.db.GetKey(hashId);
+      if (out.isCt() || out.isNft()) {
+        let hid = blsct.GetHashId(out, this.mvk);
+        if (hid) {
+          let hashId = new Buffer(hid).toString("hex");
+          let acc = await this.db.GetKey(hashId);
 
-            if (acc != undefined) {
-              if (
-                blsct.RecoverBLSCTOutput(
-                  out,
-                  this.mvk,
-                  undefined,
-                  acc[0],
-                  acc[1],
-                  out.tokenId,
-                  out.tokenNftId
-                )
-              ) {
-                mine = true;
-                let newOutput = await this.AddOutput(
-                  `${tx.txid}:${i}`,
-                  out,
-                  tx.height
-                );
-                if (newOutput) mustNotify = true;
-                if (
-                  !deltaXNav[out.tokenId.toString("hex") + ":" + out.tokenNftId]
-                )
-                  deltaXNav[
-                    out.tokenId.toString("hex") + ":" + out.tokenNftId
-                  ] = 0;
-                deltaXNav[out.tokenId.toString("hex") + ":" + out.tokenNftId] +=
-                  out.amount;
-                memos.out.push(out.memo);
-              }
-            }
-          }
-        } else if (
-          out.script.toHex() == "51" &&
-          out.tokenNftId.toString() != -1
-        ) {
-          let hid = blsct.GetHashId(out, this.mvk);
-          if (hid) {
-            let hashId = new Buffer(hid).toString("hex");
-            if (await this.db.GetKey(hashId)) {
+          if (acc != undefined) {
+            if (
+              blsct.RecoverBLSCTOutput(
+                out,
+                this.mvk,
+                undefined,
+                acc[0],
+                acc[1],
+                out.tokenId,
+                out.tokenNftId
+              )
+            ) {
               mine = true;
               let newOutput = await this.AddOutput(
                 `${tx.txid}:${i}`,
@@ -1885,244 +1864,261 @@ export class WalletFile extends events.EventEmitter {
                   out.tokenId.toString("hex") + ":" + out.tokenNftId
                 ] = 0;
               deltaXNav[out.tokenId.toString("hex") + ":" + out.tokenNftId] +=
-                out.satoshis;
+                out.amount;
+              memos.out.push(out.memo);
             }
-          }
-        } else if (
-          out.script.isPublicKeyHashOut() ||
-          out.script.isPublicKeyOut()
-        ) {
-          let hashPk = out.script.isPublicKeyOut()
-            ? ripemd160(sha256(out.script.getPublicKey()))
-            : out.script.getPublicKeyHash();
-          let hashId = new Buffer(hashPk).toString("hex");
-          let add = bitcore
-            .Address(hashPk, this.network, "pubkeyhash")
-            .toString();
-          if (addressesOut.spending.indexOf(add) == -1)
-            addressesOut.spending.push(add);
-          if (await this.db.GetKey(hashId)) {
-            mine = true;
-            let newOutput = await this.AddOutput(
-              `${tx.txid}:${i}`,
-              out,
-              tx.height
-            );
-            if (newOutput) mustNotify = true;
-            deltaNav += out.satoshis;
-          }
-        } else if (
-          out.script.isColdStakingOutP2PKH() ||
-          out.script.isColdStakingV2Out()
-        ) {
-          let hashPk = out.script.getPublicKeyHash();
-          let hashId = new Buffer(hashPk).toString("hex");
-
-          let addSp = bitcore
-            .Address(hashPk, this.network, "pubkeyhash")
-            .toString();
-          let addSt = bitcore
-            .Address(
-              out.script.getStakingPublicKeyHash(),
-              this.network,
-              "pubkeyhash"
-            )
-            .toString();
-
-          if (addressesOut.spending.indexOf(addSp) == -1)
-            addressesOut.spending.push(addSp);
-          if (addressesOut.staking.indexOf(addSt) == -1)
-            addressesOut.staking.push(addSt);
-
-          if (await this.db.GetKey(hashId)) {
-            mine = true;
-            let newOutput = await this.AddOutput(
-              `${tx.txid}:${i}`,
-              out,
-              tx.height
-            );
-            if (newOutput) mustNotify = true;
-            deltaCold += out.satoshis;
           }
         }
-
-        if ((out.vData[0] == 7 || out.vData[0] == 8) && tx.height > -0) {
-          try {
-            let name = out.vData.slice(5, 5 + out.vData[4]).toString();
-            if (await this.IsMyName(name)) {
-              let data = await this.ResolveName(name);
-              await this.AddName(name, undefined, data);
-            }
-          } catch (e) {
-            console.log(e);
-          }
-        } else if (out.vData[0] == 2 && tx.height > -0) {
-          try {
-            let values = bitcore.util.VData.parse(out.vData);
-            let id = bitcore.crypto.Hash.sha256sha256(
-              Buffer.concat([new Buffer([48]), values[1]])
-            )
-              .reverse()
-              .toString("hex");
-            console.log(`created token ${id}`);
-            await this.db.AddTokenInfo(
-              id,
-              values[2].toString(),
-              values[4].toString(),
-              values[5] / 1e8,
-              values[3],
-              values[1]
+      } else if (
+        out.script.toHex() == "51" &&
+        out.tokenNftId.toString() != -1
+      ) {
+        let hid = blsct.GetHashId(out, this.mvk);
+        if (hid) {
+          let hashId = new Buffer(hid).toString("hex");
+          if (await this.db.GetKey(hashId)) {
+            mine = true;
+            let newOutput = await this.AddOutput(
+              `${tx.txid}:${i}`,
+              out,
+              tx.height
             );
-          } catch (e) {
-            console.log(e);
+            if (newOutput) mustNotify = true;
+            if (!deltaXNav[out.tokenId.toString("hex") + ":" + out.tokenNftId])
+              deltaXNav[out.tokenId.toString("hex") + ":" + out.tokenNftId] = 0;
+            deltaXNav[out.tokenId.toString("hex") + ":" + out.tokenNftId] +=
+              out.satoshis;
           }
-        } else if (out.vData[0] == 3 && tx.height > -0) {
-          try {
-            let values = bitcore.util.VData.parse(out.vData);
-            let id = bitcore.crypto.Hash.sha256sha256(
-              Buffer.concat([new Buffer([48]), values[1]])
-            )
-              .reverse()
-              .toString("hex");
-            console.log(`mint token ${id} ${values[2]} ${values[3]}`);
-            if (values[3].length > 0) {
-              await this.db.AddNftInfo(id, values[2], values[3]);
-            }
-          } catch (e) {
-            console.log(e);
-          }
-        } else if (out.vData[0] == 6 && tx.height > -0) {
-          try {
-            let ephKey = new blsct.mcl.G1();
-            ephKey.deserialize(out.vData.slice(36, 84));
-            let nonce = blsct.mcl.mul(ephKey, this.mvk);
+        }
+      } else if (
+        out.script.isPublicKeyHashOut() ||
+        out.script.isPublicKeyOut()
+      ) {
+        let hashPk = out.script.isPublicKeyOut()
+          ? ripemd160(sha256(out.script.getPublicKey()))
+          : out.script.getPublicKeyHash();
+        let hashId = new Buffer(hashPk).toString("hex");
+        let add = bitcore
+          .Address(hashPk, this.network, "pubkeyhash")
+          .toString();
+        if (addressesOut.spending.indexOf(add) == -1)
+          addressesOut.spending.push(add);
+        if (await this.db.GetKey(hashId)) {
+          mine = true;
+          let newOutput = await this.AddOutput(
+            `${tx.txid}:${i}`,
+            out,
+            tx.height
+          );
+          if (newOutput) mustNotify = true;
+          deltaNav += out.satoshis;
+        }
+      } else if (
+        out.script.isColdStakingOutP2PKH() ||
+        out.script.isColdStakingV2Out()
+      ) {
+        let hashPk = out.script.getPublicKeyHash();
+        let hashId = new Buffer(hashPk).toString("hex");
 
-            let decryptKey = bitcore.crypto.Blsct.HashG1Element(nonce, 1);
-            let decrypted = this.Decrypt(
-              out.vData.slice(84, out.vData.length),
-              decryptKey
-            )
-              .toString()
-              .split(";");
-            let decryptedName = decrypted[0];
-            let decryptedKey = decrypted[1];
+        let addSp = bitcore
+          .Address(hashPk, this.network, "pubkeyhash")
+          .toString();
+        let addSt = bitcore
+          .Address(
+            out.script.getStakingPublicKeyHash(),
+            this.network,
+            "pubkeyhash"
+          )
+          .toString();
 
-            let sh = decryptedName + decryptedKey;
-            let nameHash = bitcore.crypto.Hash.sha256sha256(
-              Buffer.concat([new Buffer([sh.length]), new Buffer(sh, "utf-8")])
-            );
+        if (addressesOut.spending.indexOf(addSp) == -1)
+          addressesOut.spending.push(addSp);
+        if (addressesOut.staking.indexOf(addSt) == -1)
+          addressesOut.staking.push(addSt);
 
-            let bufferHash = new Buffer(nameHash);
-
-            if (
-              out.vData.slice(4, 36).toString("hex") ==
-              bufferHash.toString("hex")
-            )
-              await this.AddName(decryptedName.toString(), tx.height);
-          } catch (e) {}
+        if (await this.db.GetKey(hashId)) {
+          mine = true;
+          let newOutput = await this.AddOutput(
+            `${tx.txid}:${i}`,
+            out,
+            tx.height
+          );
+          if (newOutput) mustNotify = true;
+          deltaCold += out.satoshis;
         }
       }
 
-      if (mustNotify && mine) {
-        for (let d in deltaXNav) {
-          if (deltaXNav[d] != 0 || memos.out.length) {
-            let token = d.split(":")[0];
-            let nftid = d.split(":")[1];
-            let fisxnav =
-              token ==
-              "0000000000000000000000000000000000000000000000000000000000000000";
-            let fistoken = nftid == "-1";
-            let info = !fisxnav
-              ? await this.GetTokenInfo(token)
-              : { name: "xnav", code: "xnav" };
-            this.emit("new_tx", {
-              txid: tx.txid,
-              amount: deltaXNav[d],
-              type: fisxnav ? "xnav" : fistoken ? "token" : "nft",
-              token_name: fisxnav ? "xnav" : info.name,
-              token_code: fisxnav ? "xnav" : fistoken ? info.code : info.name,
-              confirmed: tx.height > -0,
-              height: tx.height,
-              pos: tx.pos,
-              timestamp: tx.tx.time,
-              memos: memos,
-              strdzeel: tx.strdzeel,
-              token_id: token,
-              nft_id: nftid,
-            });
-            await this.db.AddWalletTx(
-              tx.txid,
-              fisxnav ? "xnav" : fistoken ? "token" : "nft",
-              deltaXNav[d],
-              tx.height > 0,
-              tx.height,
-              tx.pos,
-              tx.tx.time,
-              memos,
-              tx.strdzeel,
-              addressesIn,
-              addressesOut,
-              fisxnav ? "xnav" : info.name,
-              fisxnav ? "xnav" : fistoken ? info.code : info.name,
-              token,
-              nftid
-            );
+      if ((out.vData[0] == 7 || out.vData[0] == 8) && tx.height > -0) {
+        try {
+          let name = out.vData.slice(5, 5 + out.vData[4]).toString();
+          if (await this.IsMyName(name)) {
+            let data = await this.ResolveName(name);
+            await this.AddName(name, undefined, data);
           }
+        } catch (e) {
+          console.log(e);
         }
-        if (deltaNav != 0) {
-          this.emit("new_tx", {
-            txid: tx.txid,
-            amount: deltaNav,
-            type: "nav",
-            confirmed: tx.height > 0,
-            height: tx.height,
-            pos: tx.pos,
-            timestamp: tx.tx.time,
-            strdzeel: tx.strdzeel,
-          });
-          await this.db.AddWalletTx(
-            tx.txid,
-            "nav",
-            deltaNav,
-            tx.height > 0,
-            tx.height,
-            tx.pos,
-            tx.tx.time,
-            tx.strdzeel,
-            addressesIn,
-            addressesOut
+      } else if (out.vData[0] == 2 && tx.height > -0) {
+        try {
+          let values = bitcore.util.VData.parse(out.vData);
+          let id = bitcore.crypto.Hash.sha256sha256(
+            Buffer.concat([new Buffer([48]), values[1]])
+          )
+            .reverse()
+            .toString("hex");
+          console.log(`created token ${id}`);
+          await this.db.AddTokenInfo(
+            id,
+            values[2].toString(),
+            values[4].toString(),
+            values[5] / 1e8,
+            values[3],
+            values[1]
           );
+        } catch (e) {
+          console.log(e);
         }
-        if (deltaCold != 0) {
-          this.emit("new_tx", {
-            txid: tx.txid,
-            amount: deltaCold,
-            type: "cold_staking",
-            confirmed: tx.height > 0,
-            height: tx.height,
-            pos: tx.pos,
-            timestamp: tx.tx.time,
-            strdzeel: tx.strdzeel,
-          });
-          await this.db.AddWalletTx(
-            tx.txid,
-            "cold_staking",
-            deltaCold,
-            tx.height > 0,
-            tx.height,
-            tx.pos,
-            tx.tx.time,
-            tx.strdzeel,
-            addressesIn,
-            addressesOut
+      } else if (out.vData[0] == 3 && tx.height > -0) {
+        try {
+          let values = bitcore.util.VData.parse(out.vData);
+          let id = bitcore.crypto.Hash.sha256sha256(
+            Buffer.concat([new Buffer([48]), values[1]])
+          )
+            .reverse()
+            .toString("hex");
+          console.log(`mint token ${id} ${values[2]} ${values[3]}`);
+          if (values[3].length > 0) {
+            await this.db.AddNftInfo(id, values[2], values[3]);
+          }
+        } catch (e) {
+          console.log(e);
+        }
+      } else if (out.vData[0] == 6 && tx.height > -0) {
+        try {
+          let ephKey = new blsct.mcl.G1();
+          ephKey.deserialize(out.vData.slice(36, 84));
+          let nonce = blsct.mcl.mul(ephKey, this.mvk);
+
+          let decryptKey = bitcore.crypto.Blsct.HashG1Element(nonce, 1);
+          let decrypted = this.Decrypt(
+            out.vData.slice(84, out.vData.length),
+            decryptKey
+          )
+            .toString()
+            .split(";");
+          let decryptedName = decrypted[0];
+          let decryptedKey = decrypted[1];
+
+          let sh = decryptedName + decryptedKey;
+          let nameHash = bitcore.crypto.Hash.sha256sha256(
+            Buffer.concat([new Buffer([sh.length]), new Buffer(sh, "utf-8")])
           );
-        }
+
+          let bufferHash = new Buffer(nameHash);
+
+          if (
+            out.vData.slice(4, 36).toString("hex") == bufferHash.toString("hex")
+          )
+            await this.AddName(decryptedName.toString(), tx.height);
+        } catch (e) {}
       }
     }
 
-    await this.db.MarkAsFetched(hash);
-
-    return tx;
+    if (mustNotify && mine) {
+      for (let d in deltaXNav) {
+        if (deltaXNav[d] != 0 || memos.out.length) {
+          let token = d.split(":")[0];
+          let nftid = d.split(":")[1];
+          let fisxnav =
+            token ==
+            "0000000000000000000000000000000000000000000000000000000000000000";
+          let fistoken = nftid == "-1";
+          let info = !fisxnav
+            ? await this.GetTokenInfo(token)
+            : { name: "xnav", code: "xnav" };
+          this.emit("new_tx", {
+            txid: tx.txid,
+            amount: deltaXNav[d],
+            type: fisxnav ? "xnav" : fistoken ? "token" : "nft",
+            token_name: fisxnav ? "xnav" : info.name,
+            token_code: fisxnav ? "xnav" : fistoken ? info.code : info.name,
+            confirmed: tx.height > -0,
+            height: tx.height,
+            pos: tx.pos,
+            timestamp: tx.tx.time,
+            memos: memos,
+            strdzeel: tx.strdzeel,
+            token_id: token,
+            nft_id: nftid,
+          });
+          await this.db.AddWalletTx(
+            tx.txid,
+            fisxnav ? "xnav" : fistoken ? "token" : "nft",
+            deltaXNav[d],
+            tx.height > 0,
+            tx.height,
+            tx.pos,
+            tx.tx.time,
+            memos,
+            tx.strdzeel,
+            addressesIn,
+            addressesOut,
+            fisxnav ? "xnav" : info.name,
+            fisxnav ? "xnav" : fistoken ? info.code : info.name,
+            token,
+            nftid
+          );
+        }
+      }
+      if (deltaNav != 0) {
+        this.emit("new_tx", {
+          txid: tx.txid,
+          amount: deltaNav,
+          type: "nav",
+          confirmed: tx.height > 0,
+          height: tx.height,
+          pos: tx.pos,
+          timestamp: tx.tx.time,
+          strdzeel: tx.strdzeel,
+        });
+        await this.db.AddWalletTx(
+          tx.txid,
+          "nav",
+          deltaNav,
+          tx.height > 0,
+          tx.height,
+          tx.pos,
+          tx.tx.time,
+          tx.strdzeel,
+          addressesIn,
+          addressesOut
+        );
+      }
+      if (deltaCold != 0) {
+        this.emit("new_tx", {
+          txid: tx.txid,
+          amount: deltaCold,
+          type: "cold_staking",
+          confirmed: tx.height > 0,
+          height: tx.height,
+          pos: tx.pos,
+          timestamp: tx.tx.time,
+          strdzeel: tx.strdzeel,
+        });
+        await this.db.AddWalletTx(
+          tx.txid,
+          "cold_staking",
+          deltaCold,
+          tx.height > 0,
+          tx.height,
+          tx.pos,
+          tx.tx.time,
+          tx.strdzeel,
+          addressesIn,
+          addressesOut
+        );
+      }
+    }
   }
 
   async GetMyNames() {
@@ -2732,11 +2728,19 @@ export class WalletFile extends events.EventEmitter {
     if (!this.client) return;
     let ret = await this.client.blockchain_transaction_broadcast(tx);
     let txObj = bitcore.Transaction(tx);
-    for (var i in tx.inputs) {
-      let input = tx.inputs[i].toObject();
 
-      await this.Spend(`${input.prevTxId}:${input.outputIndex}`, "0:0");
+    let tx_ = { txid: ret, hex: tx };
+
+    try {
+      await this.db.AddTx(tx_);
+    } catch (e) {
+      console.log("AddTx", e);
     }
+
+    tx_.tx = txObj;
+
+    await this.ProcessTx(tx_);
+
     return ret;
   }
 
