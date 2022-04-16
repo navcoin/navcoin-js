@@ -356,7 +356,7 @@ export default class Db extends events.EventEmitter {
   }
 
   async BulkRawInsert(documents) {
-    if (!this.db) return;
+    if (!this.dbTx) return;
     await this.dbTx.txKeys.bulkPut(documents).catch(console.log);
   }
 

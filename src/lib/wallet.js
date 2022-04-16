@@ -23,8 +23,14 @@ import { sha256sha256 } from "@aguycalled/bitcore-lib/lib/crypto/hash";
 
 export * as xNavBootstrap from "./xnav_bootstrap.js";
 
+let db = Db["Dexie"].default;
+
 export const Init = async () => {
   await blsct.Init();
+};
+
+export const SetBackendDb = (backend) => {
+  db = backend;
 };
 
 const blsct = bitcore.Transaction.Blsct;
@@ -98,15 +104,15 @@ export class WalletFile extends events.EventEmitter {
   }
 
   static async ListWallets() {
-    return await Db.ListWallets();
+    return await db.ListWallets();
   }
 
   static async SetBackend(indexedDB, IDBKeyRange) {
-    return await Db.SetBackend(indexedDB, IDBKeyRange);
+    return await db.SetBackend(indexedDB, IDBKeyRange);
   }
 
   static async RemoveWallet(filename) {
-    return await Db.RemoveWallet(filename);
+    return await db.RemoveWallet(filename);
   }
 
   async GetPoolSize(type) {
@@ -1558,7 +1564,9 @@ export class WalletFile extends events.EventEmitter {
 
   async AddOutput(outpoint, out) {
     let amount = out.isCt() || out.isNft() ? out.amount : out.satoshis;
-    let label = out.isCt() ? out.memo : out.script.toAddress(this.network);
+    let label = out.isCt()
+      ? out.memo
+      : out.script.toAddress(this.network).toString();
     let isCold =
       out.script.isColdStakingOutP2PKH() || out.script.isColdStakingV2Out();
 
