@@ -1,5 +1,5 @@
 import * as crypto from "crypto";
-import * as Db from "./db/dexie.js";
+import * as Db from "./db/index.js";
 import * as events from "events";
 import { default as List } from "./utils/list.js";
 
@@ -49,6 +49,7 @@ export class WalletFile extends events.EventEmitter {
     this.spendingPassword = options.spendingPassword;
     this.zapwallettxes = options.zapwallettxes || false;
     this.log = options.log || false;
+    this.dbBackend = options.dbBackend || Db["Dexie"].default;
     this.queue = new queue();
 
     let self = this;
@@ -69,7 +70,7 @@ export class WalletFile extends events.EventEmitter {
 
     this.network = options.network || "mainnet";
 
-    this.db = new Db.default(
+    this.db = new this.dbBackend(
       options.file,
       secret,
       options.indexedDB,
