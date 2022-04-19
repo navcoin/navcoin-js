@@ -61,6 +61,8 @@ export default class Db extends events.EventEmitter {
         }
       );
 
+      if (!this.open) return;
+
       this.db.version(6).stores({
         keys: "&hash, type, address, used, change",
         walletTxs: "&id, hash, amount, type, confirmed, height, pos, timestamp",
