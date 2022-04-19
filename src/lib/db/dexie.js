@@ -37,6 +37,8 @@ export default class Db extends events.EventEmitter {
         IDBKeyRange: IDBKeyRange || window.IDBKeyRange,
       });
 
+      this.open = true;
+
       let self = this;
 
       applyEncryptionMiddleware(
@@ -57,13 +59,11 @@ export default class Db extends events.EventEmitter {
           nfts: NON_INDEXED_FIELDS,
         },
         async (db) => {
-          this.emit("db_load_error", "Wrong key");
+          self.emit("db_load_error", "Wrong key");
           self.open = false;
           throw new Error("Wrong key");
         }
       );
-
-      if (!this.open) return;
 
       this.db.version(6).stores({
         keys: "&hash, type, address, used, change",
@@ -87,9 +87,9 @@ export default class Db extends events.EventEmitter {
       });
 
       this.emit("db_open");
-      this.open = true;
     } catch (e) {
       console.log(e);
+      this.open = false;
       this.emit("db_load_error", e);
     }
   }
