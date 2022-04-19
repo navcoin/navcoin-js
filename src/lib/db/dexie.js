@@ -56,6 +56,7 @@ export default class Db extends events.EventEmitter {
         },
         async (db) => {
           this.emit("db_load_error", "Wrong key");
+          this.open = false;
           throw new Error("Wrong key");
         }
       );
@@ -82,6 +83,7 @@ export default class Db extends events.EventEmitter {
       });
 
       this.emit("db_open");
+      this.open = true;
     } catch (e) {
       console.log(e);
       this.emit("db_load_error", e);
