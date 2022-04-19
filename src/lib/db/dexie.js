@@ -3,7 +3,10 @@ import { default as AddressTypes } from "../utils/address_types.js";
 import * as crypto from "crypto";
 
 import Dexie from "dexie";
-import { applyEncryptionMiddleware } from "@aguycalled/dexie-encrypted";
+import {
+  applyEncryptionMiddleware,
+  NON_INDEXED_FIELDS,
+} from "@aguycalled/dexie-encrypted";
 
 const algorithm = "aes-256-cbc";
 
@@ -34,11 +37,30 @@ export default class Db extends events.EventEmitter {
         IDBKeyRange: IDBKeyRange || window.IDBKeyRange,
       });
 
-      applyEncryptionMiddleware(this.db, key, {}, async (db) => {
-        this.emit("db_load_error", "Wrong key");
-      });
+      applyEncryptionMiddleware(
+        this.db,
+        key,
+        {
+          keys: NON_INDEXED_FIELDS,
+          walletTxs: NON_INDEXED_FIELDS,
+          outPoints: NON_INDEXED_FIELDS,
+          scriptHistories: NON_INDEXED_FIELDS,
+          settings: NON_INDEXED_FIELDS,
+          encryptedSettings: NON_INDEXED_FIELDS,
+          statuses: NON_INDEXED_FIELDS,
+          stakingAddresses: NON_INDEXED_FIELDS,
+          labels: NON_INDEXED_FIELDS,
+          names: NON_INDEXED_FIELDS,
+          tokens: NON_INDEXED_FIELDS,
+          nfts: NON_INDEXED_FIELDS,
+        },
+        async (db) => {
+          this.emit("db_load_error", "Wrong key");
+          throw new Error("Wrong key");
+        }
+      );
 
-      this.db.version(5).stores({
+      this.db.version(6).stores({
         keys: "&hash, type, address, used, change",
         walletTxs: "&id, hash, amount, type, confirmed, height, pos, timestamp",
         outPoints: "&id, spentIn, amount, label, type",
