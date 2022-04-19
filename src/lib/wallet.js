@@ -131,7 +131,7 @@ export class WalletFile extends events.EventEmitter {
     this.daoConsultations = {};
     this.daoProposals = {};
 
-    if (!this.db) throw new Error("DB did not load.");
+    if (!this.db || !this.db.open) throw new Error("DB did not load.");
 
     let network = await this.db.GetValue("network");
 
