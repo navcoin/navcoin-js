@@ -37,6 +37,8 @@ export default class Db extends events.EventEmitter {
         IDBKeyRange: IDBKeyRange || window.IDBKeyRange,
       });
 
+      let self = this;
+
       applyEncryptionMiddleware(
         this.db,
         key,
@@ -56,7 +58,7 @@ export default class Db extends events.EventEmitter {
         },
         async (db) => {
           this.emit("db_load_error", "Wrong key");
-          this.open = false;
+          self.open = false;
           throw new Error("Wrong key");
         }
       );
