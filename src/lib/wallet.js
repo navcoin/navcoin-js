@@ -733,8 +733,13 @@ export class WalletFile extends events.EventEmitter {
 
       if (resetFailed) this.failedConnections = 0;
 
+      this.emit("bootstrap_started");
+
       let tip = (await this.client.blockchain_headers_subscribe()).height;
-      this.daoConsensus = await this.client.blockchain_consensus_subscribe();
+      let self = this;
+      this.client.blockchain_consensus_subscribe().then((consensus) => {
+        self.daoConsensus = consensus;
+      });
       await this.client.blockchain_dao_subscribe();
 
       await this.SetTip(tip);
