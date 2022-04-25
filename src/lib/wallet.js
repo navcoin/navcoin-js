@@ -271,7 +271,7 @@ export class WalletFile extends events.EventEmitter {
 
     if (!mk) return;
 
-    while ((await this.GetPoolSize(AddressTypes.XNAV)) < 5) {
+    while ((await this.GetPoolSize(AddressTypes.XNAV)) < 3) {
       await this.xNavCreateSubaddress(spendingPassword);
     }
   }
@@ -283,7 +283,7 @@ export class WalletFile extends events.EventEmitter {
 
     if (!mk) return;
 
-    while ((await this.GetPoolSize(AddressTypes.NAV)) < 5) {
+    while ((await this.GetPoolSize(AddressTypes.NAV)) < 3) {
       await this.NavCreateAddress(spendingPassword);
     }
   }
