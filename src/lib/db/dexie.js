@@ -11,9 +11,11 @@ import {
 const algorithm = "aes-256-cbc";
 
 export default class Db extends events.EventEmitter {
-  constructor(filename, secret, indexedDB, IDBKeyRange) {
+  constructor() {
     super();
+  }
 
+  async Open(filename, secret, indexedDB, IDBKeyRange) {
     let key = new Buffer(
       crypto
         .createHash("sha256")

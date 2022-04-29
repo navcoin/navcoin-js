@@ -50,12 +50,17 @@ export class WalletFile extends events.EventEmitter {
 
     options = options || {};
 
+    this.name = options.name;
     this.type = options.type || "navcoin-js-v1";
     this.mnemonic = options.mnemonic;
     this.spendingPassword = options.spendingPassword;
+    this.secret = options.password || "secret navcoinjs";
     this.zapwallettxes = options.zapwallettxes || false;
     this.log = options.log || false;
     this.dbBackend = options.dbBackend || Db["Dexie"].default;
+    this.indexedDB = options.indexedDB;
+    this.IDBKeyRange = options.IDBKeyRange;
+
     this.queue = new queue();
 
     let self = this;
@@ -72,16 +77,8 @@ export class WalletFile extends events.EventEmitter {
       self.emit("sync_started");
     });
 
-    let secret = options.password || "secret navcoinjs";
-
     this.network = options.network || "mainnet";
-
-    this.db = new this.dbBackend(
-      options.file,
-      secret,
-      options.indexedDB,
-      options.IDBKeyRange
-    );
+    this.db = new this.dbBackend();
 
     this.db.on("db_load_error", (e) => {
       this.emit("db_load_error", e);
@@ -96,6 +93,17 @@ export class WalletFile extends events.EventEmitter {
       this.emit("db_closed");
       this.Disconnect();
     });
+  }
+
+  async InitDb(options = {}) {
+    await this.db.Open(
+      this.file,
+      this.secret,
+      this.indexedDB,
+      this.IDBKeyRange
+    );
+
+    delete this.secret;
   }
 
   CloseDb() {
@@ -125,13 +133,17 @@ export class WalletFile extends events.EventEmitter {
   }
 
   async Load(options) {
+    if (!this.db) throw new Error("DB did not load.");
+
+    await this.InitDb();
+
     options = options || {};
 
     this.daoConsensus = {};
     this.daoConsultations = {};
     this.daoProposals = {};
 
-    if (!this.db || !this.db.open) throw new Error("DB did not load.");
+    if (!this.db.open) throw new Error("DB did not load.");
 
     let network = await this.db.GetValue("network");
 
