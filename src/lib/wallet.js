@@ -50,7 +50,7 @@ export class WalletFile extends events.EventEmitter {
 
     options = options || {};
 
-    this.name = options.name;
+    this.file = options.file;
     this.type = options.type || "navcoin-js-v1";
     this.mnemonic = options.mnemonic;
     this.spendingPassword = options.spendingPassword;
@@ -778,7 +778,10 @@ export class WalletFile extends events.EventEmitter {
         "blockchain.outpoint.subscribe",
         async (event) => {
           if (event[1] && event[1].spender_txhash)
-            this.db.RemoveTxCandidate(event[0][0] + ":" + event[0][1]);
+            this.db.RemoveTxCandidate(
+              event[0][0] + ":" + event[0][1],
+              this.network
+            );
         }
       );
 
@@ -797,7 +800,7 @@ export class WalletFile extends events.EventEmitter {
           candidates[i].input.split(":")[1]
         );
         if (currentStatus && currentStatus.spender_txhash)
-          this.db.RemoveTxCandidate(candidates[i].input);
+          this.db.RemoveTxCandidate(candidates[i].input, this.network);
       }
 
       this.client.subscribe.on("blockchain.dao.subscribe", async (event) => {
