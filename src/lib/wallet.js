@@ -115,8 +115,8 @@ export class WalletFile extends events.EventEmitter {
     return await db.RemoveWallet(filename);
   }
 
-  async GetPoolSize(type) {
-    return await this.db.GetPoolSize(type);
+  async GetPoolSize(type, change) {
+    return await this.db.GetPoolSize(type, change);
   }
 
   Log(str) {
@@ -283,8 +283,14 @@ export class WalletFile extends events.EventEmitter {
 
     if (!mk) return;
 
-    while ((await this.GetPoolSize(AddressTypes.NAV)) < 3) {
+    while ((await this.GetPoolSize(AddressTypes.NAV)) < 4) {
       await this.NavCreateAddress(spendingPassword);
+    }
+
+    if (this.type == "navcash" || this.type == "navcoin-core") {
+      while ((await this.GetPoolSize(AddressTypes.NAV, 1)) < 4) {
+        await this.NavCreateAddress(spendingPassword, 1);
+      }
     }
   }
 

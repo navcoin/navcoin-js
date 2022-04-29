@@ -131,11 +131,15 @@ export default class Db extends events.EventEmitter {
     }
   }
 
-  async GetPoolSize(type) {
+  async GetPoolSize(type, change) {
     if (!this.db) return;
 
     return await this.db.keys
-      .where({ type: type, used: 0 })
+      .where(
+        change
+          ? { type: type, used: 0, change: change }
+          : { type: type, used: 0 }
+      )
       .count()
       .catch("DatabaseClosedError", (e) => {
         console.error("DatabaseClosed error: " + e.message);
