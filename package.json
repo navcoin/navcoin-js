@@ -1,6 +1,6 @@
 {
   "name": "navcoin-js",
-  "version": "1.1.103",
+  "version": "1.1.104",
   "description": "Navcoin Javascript Library",
   "main": "./dist/index.js",
   "scripts": {
@@ -24,7 +24,7 @@
     "async-mutex": "^0.3.2",
     "babelify": "^10.0.0",
     "crypto-pouch": "^4.0.1",
-    "dexie": "^3.2.1-beta.2",
+    "dexie": "^3.2.2",
     "electrum-mnemonic": "^2.0.0",
     "fake-indexeddb": "^3.1.7",
     "indexeddbshim": "^8.0.0",
