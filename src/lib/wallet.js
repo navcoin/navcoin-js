@@ -168,7 +168,10 @@ export class WalletFile extends events.EventEmitter {
       if (this.type === "watch" && options.watch) {
         await this.ImportWatchAddress(options.watch);
 
-        let masterKey = new Mnemonic(mnemonic).toHDPrivateKey("", this.network);
+        let masterKey = await new Mnemonic(mnemonic).toHDPrivateKeyAsync(
+          "",
+          this.network
+        );
 
         await this.SetMasterKey(masterKey, this.spendingPassword);
       } else if (this.type === "next") {
@@ -179,7 +182,10 @@ export class WalletFile extends events.EventEmitter {
 
         await this.ImportPrivateKey(pk, this.spendingPassword);
 
-        let masterKey = new Mnemonic(mnemonic).toHDPrivateKey("", this.network);
+        let masterKey = await new Mnemonic(mnemonic).toHDPrivateKeyAsync(
+          "",
+          this.network
+        );
 
         await this.SetMasterKey(masterKey, this.spendingPassword);
       } else if (this.type === "navcoin-core") {
@@ -195,7 +201,10 @@ export class WalletFile extends events.EventEmitter {
 
         await this.SetMasterKey(masterKey, this.spendingPassword);
       } else {
-        let masterKey = new Mnemonic(mnemonic).toHDPrivateKey("", this.network);
+        let masterKey = await new Mnemonic(mnemonic).toHDPrivateKeyAsync(
+          "",
+          this.network
+        );
 
         await this.SetMasterKey(masterKey, this.spendingPassword);
       }
@@ -385,16 +394,6 @@ export class WalletFile extends events.EventEmitter {
 
     if (!privK) return undefined;
 
-    let pubK = await this.db.GetValue("masterPubKey");
-
-    if (!pubK) return undefined;
-
-    if (
-      bitcore.HDPrivateKey(privK).hdPublicKey.toString() !==
-      bitcore.HDPublicKey(pubK).toString()
-    )
-      return undefined;
-
     return privK;
   }
 
@@ -404,19 +403,6 @@ export class WalletFile extends events.EventEmitter {
     let privK = await this.db.GetMasterKey("xNavSpend", key);
 
     if (!privK) return undefined;
-
-    let pubK = await this.db.GetValue("masterSpendPubKey");
-
-    if (!pubK) return undefined;
-
-    if (
-      !blsct.mcl
-        .deserializeHexStrToG1(pubK)
-        .isEqual(
-          blsct.mcl.mul(blsct.G(), blsct.mcl.deserializeHexStrToFr(privK))
-        )
-    )
-      return undefined;
 
     return blsct.mcl.deserializeHexStrToFr(privK);
   }
