@@ -592,6 +592,8 @@ export class WalletFile extends events.EventEmitter {
   }
 
   async GetScriptHashes(stakingAddress = undefined) {
+    if (!this.client) return;
+
     let ret = [];
 
     let addresses = await this.db.GetNavAddresses();
@@ -1170,6 +1172,8 @@ export class WalletFile extends events.EventEmitter {
 
           this.emit('remove_tx', historyRange[e].tx_hash);
       }*/
+
+    if (!firstSynced) return;
 
     this.firstSynced[scripthash] = true;
 
