@@ -1173,7 +1173,7 @@ export class WalletFile extends events.EventEmitter {
           this.emit('remove_tx', historyRange[e].tx_hash);
       }*/
 
-    if (!firstSynced) return;
+    if (!this.firstSynced) return;
 
     this.firstSynced[scripthash] = true;
 
