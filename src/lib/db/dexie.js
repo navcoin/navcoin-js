@@ -88,6 +88,10 @@ export default class Db extends events.EventEmitter {
         candidates: "&input, network",
       });
 
+      this.db.on("versionchange", function (event) {
+        self.db.close();
+      });
+
       this.emit("db_open");
     } catch (e) {
       console.log(e);

@@ -61,7 +61,7 @@ export class WalletFile extends events.EventEmitter {
     this.indexedDB = options.indexedDB;
     this.IDBKeyRange = options.IDBKeyRange;
 
-    this.queue = new queue();
+    this.queue = new queue(options.queueSize);
 
     let self = this;
 
