@@ -1992,7 +1992,7 @@ export class WalletFile extends events.EventEmitter {
           )
             .reverse()
             .toString("hex");
-          console.log(`created token ${id}`);
+          this.emit("new_token", id);
           await this.db.AddTokenInfo(
             id,
             values[2].toString(),
@@ -2044,8 +2044,10 @@ export class WalletFile extends events.EventEmitter {
 
           if (
             out.vData.slice(4, 36).toString("hex") == bufferHash.toString("hex")
-          )
+          ) {
+            this.emit("new_name", decryptedName.toString());
             await this.AddName(decryptedName.toString(), tx.height);
+          }
         } catch (e) {}
       }
     }
