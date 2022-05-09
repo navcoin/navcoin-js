@@ -25,6 +25,11 @@ export * as xNavBootstrap from "./xnav_bootstrap.js";
 
 let db = Db["Dexie"].default;
 
+const asyncFilter = async (arr, predicate) =>
+  Promise.all(arr.map(predicate)).then((results) =>
+    arr.filter((_v, index) => results[index])
+  );
+
 export const Init = async () => {
   await blsct.Init();
 };
@@ -1130,6 +1135,7 @@ export class WalletFile extends events.EventEmitter {
       for (var i in toAddBulk) {
         if (txs) {
           txs.push([toAddBulk[i].tx_hash, toAddBulk[i].height, true], false);
+          if (i % 100 == 0) this.emit("bootstrap_progress", txs.list.length);
         } else {
           await this.QueueTxKeys(
             toAddBulk[i].tx_hash,
@@ -2156,7 +2162,7 @@ export class WalletFile extends events.EventEmitter {
   async GetMyTokens(spendingPassword) {
     let allTokens = await this.db.GetMyTokens();
 
-    return allTokens.filter(async (token) => {
+    return await asyncFilter(allTokens, async (token) => {
       let derived = await this.DeriveSpendingKeyFromStringHash(
         "token/",
         token.name + (token.token_code ? token.token_code : token.scheme),
@@ -2413,7 +2419,7 @@ export class WalletFile extends events.EventEmitter {
       msk.copy(ret, 32 - msk.length);
     }
     let retFr = new blsct.mcl.Fr();
-    retFr.setLittleEndianMod(ret);
+    retFr.setLittleEndianMod(new Uint8Array(ret));
     return retFr.serialize();
   }
 
