@@ -2159,7 +2159,7 @@ export class WalletFile extends events.EventEmitter {
     return await this.db.GetMyNames();
   }
 
-  async GetMyTokefns() {
+  async GetMyTokens() {
     let allTokens = await this.db.GetMyTokens();
 
     return await asyncFilter(allTokens, async (token) => {
