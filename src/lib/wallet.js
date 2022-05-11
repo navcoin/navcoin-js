@@ -1980,7 +1980,7 @@ export class WalletFile extends events.EventEmitter {
         }
       }
 
-      if ((out.vData[0] == 7 || out.vData[0] == 8) && tx.height > -0) {
+      if (out.vData[0] == 7 || out.vData[0] == 8) {
         try {
           let name = out.vData.slice(5, 5 + out.vData[4]).toString();
           if (await this.IsMyName(name)) {
@@ -1990,7 +1990,7 @@ export class WalletFile extends events.EventEmitter {
         } catch (e) {
           console.log(e);
         }
-      } else if (out.vData[0] == 2 && tx.height > -0) {
+      } else if (out.vData[0] == 2) {
         try {
           let values = bitcore.util.VData.parse(out.vData);
           let id = bitcore.crypto.Hash.sha256sha256(
@@ -2010,7 +2010,7 @@ export class WalletFile extends events.EventEmitter {
         } catch (e) {
           console.log(e);
         }
-      } else if (out.vData[0] == 3 && tx.height > -0) {
+      } else if (out.vData[0] == 3) {
         try {
           let values = bitcore.util.VData.parse(out.vData);
           let id = bitcore.crypto.Hash.sha256sha256(
@@ -2025,7 +2025,7 @@ export class WalletFile extends events.EventEmitter {
         } catch (e) {
           console.log(e);
         }
-      } else if (out.vData[0] == 6 && tx.height > -0) {
+      } else if (out.vData[0] == 6) {
         try {
           let ephKey = new blsct.mcl.G1();
           ephKey.deserialize(out.vData.slice(36, 84));
@@ -2159,18 +2159,11 @@ export class WalletFile extends events.EventEmitter {
     return await this.db.GetMyNames();
   }
 
-  async GetMyTokens(spendingPassword) {
+  async GetMyTokefns() {
     let allTokens = await this.db.GetMyTokens();
 
     return await asyncFilter(allTokens, async (token) => {
-      let derived = await this.DeriveSpendingKeyFromStringHash(
-        "token/",
-        token.name + (token.token_code ? token.token_code : token.scheme),
-        spendingPassword
-      );
-      let key = blsct.SkToPubKey(new Buffer(derived).toString("hex"));
-
-      return key.serializeToHexStr() == token.pubkey;
+      return this.db.GetKey(token.id);
     });
   }
 
@@ -2976,6 +2969,18 @@ export class WalletFile extends events.EventEmitter {
     )
       .reverse()
       .toString("hex");
+
+    await this.db.AddKey(
+      ret.token_id.toString("hex"),
+      key.serialize().toString("hex"),
+      AddressTypes.TOKEN,
+      name,
+      false,
+      false,
+      scheme,
+      spendingPassword
+    );
+
     return ret;
   }
 
