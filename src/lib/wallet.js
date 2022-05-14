@@ -1676,6 +1676,7 @@ export class WalletFile extends events.EventEmitter {
     if (!tx) {
       let tx_;
       try {
+        if (!this.client) return;
         tx_ = await this.client.blockchain_transaction_get(hash, false);
       } catch (e) {
         this.Log(`error getting tx ${hash}: ${e}`);
@@ -1698,6 +1699,7 @@ export class WalletFile extends events.EventEmitter {
     if (!tx.height || tx.height <= 0 || (height && height != tx.height)) {
       let heightBlock;
       try {
+        if (!this.client) return;
         heightBlock = await this.client.blockchain_transaction_getMerkle(hash);
         tx.height = heightBlock.block_height;
         tx.pos = heightBlock.pos;
@@ -2332,6 +2334,7 @@ export class WalletFile extends events.EventEmitter {
 
     if (!txKeys) {
       try {
+        if (!this.client) return;
         txKeys = await this.client.blockchain_transaction_getKeys(hash);
       } catch (e) {
         this.Log(`error getting tx keys ${hash}: ${e}`);

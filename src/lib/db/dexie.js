@@ -395,13 +395,20 @@ export default class Db extends events.EventEmitter {
 
   async BulkRawInsert(documents) {
     if (!this.dbTx) return;
-    await this.dbTx.txKeys.bulkPut(documents).catch(console.log);
+    const chunkSize = 50;
+    for (let i = 0; i < documents.length; i += chunkSize) {
+      const chunk = documents.slice(i, i + chunkSize);
+      await this.dbTx.txKeys.bulkPut(chunk).catch(console.log);
+    }
   }
 
   async BulkRawInsertHistory(documents) {
     if (!this.db) return;
-
-    await this.db.scriptHistories.bulkPut(documents).catch(console.log);
+    const chunkSize = 50;
+    for (let i = 0; i < documents.length; i += chunkSize) {
+      const chunk = documents.slice(i, i + chunkSize);
+      await this.db.scriptHistories.bulkPut(chunk).catch(console.log);
+    }
   }
 
   async ZapWalletTxes() {
