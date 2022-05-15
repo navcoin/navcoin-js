@@ -1752,8 +1752,8 @@ export class WalletFile extends events.EventEmitter {
         let hid = blsct.GetHashId(prevOut, this.mvk);
         if (hid) {
           let hashId = new Buffer(hid).toString("hex");
-          let acc = await this.db.GetKey(hashId);
-          if (acc != undefined) {
+          let acc = await this.db.HaveKey(hashId);
+          if (acc) {
             if (
               blsct.RecoverBLSCTOutput(
                 prevOut,
@@ -1806,7 +1806,7 @@ export class WalletFile extends events.EventEmitter {
         if (addressesIn.spending.indexOf(add) == -1)
           addressesIn.spending.push(add);
 
-        if (await this.db.GetKey(hashId)) {
+        if (await this.db.HaveKey(hashId)) {
           mine = true;
           let newOutput = await this.AddOutput(
             `${input.prevTxId}:${input.outputIndex}`,
@@ -1846,7 +1846,7 @@ export class WalletFile extends events.EventEmitter {
           addressesIn.staking.push(addSt);
         }
 
-        if (await this.db.GetKey(hashId)) {
+        if (await this.db.HaveKey(hashId)) {
           mine = true;
           let newOutput = await this.AddOutput(
             `${input.prevTxId}:${input.outputIndex}`,
@@ -1870,9 +1870,9 @@ export class WalletFile extends events.EventEmitter {
         let hid = blsct.GetHashId(out, this.mvk);
         if (hid) {
           let hashId = new Buffer(hid).toString("hex");
-          let acc = await this.db.GetKey(hashId);
+          let acc = await this.db.HaveKey(hashId);
 
-          if (acc != undefined) {
+          if (acc) {
             if (
               blsct.RecoverBLSCTOutput(
                 out,
@@ -1910,7 +1910,7 @@ export class WalletFile extends events.EventEmitter {
         let hid = blsct.GetHashId(out, this.mvk);
         if (hid) {
           let hashId = new Buffer(hid).toString("hex");
-          if (await this.db.GetKey(hashId)) {
+          if (await this.db.HaveKey(hashId)) {
             mine = true;
             let newOutput = await this.AddOutput(
               `${tx.txid}:${i}`,
@@ -1937,7 +1937,7 @@ export class WalletFile extends events.EventEmitter {
           .toString();
         if (addressesOut.spending.indexOf(add) == -1)
           addressesOut.spending.push(add);
-        if (await this.db.GetKey(hashId)) {
+        if (await this.db.HaveKey(hashId)) {
           mine = true;
           let newOutput = await this.AddOutput(
             `${tx.txid}:${i}`,
@@ -1970,7 +1970,7 @@ export class WalletFile extends events.EventEmitter {
         if (addressesOut.staking.indexOf(addSt) == -1)
           addressesOut.staking.push(addSt);
 
-        if (await this.db.GetKey(hashId)) {
+        if (await this.db.HaveKey(hashId)) {
           mine = true;
           let newOutput = await this.AddOutput(
             `${tx.txid}:${i}`,
@@ -2165,7 +2165,7 @@ export class WalletFile extends events.EventEmitter {
     let allTokens = await this.db.GetMyTokens();
 
     return await asyncFilter(allTokens, async (token) => {
-      return this.db.GetKey(token.id);
+      return this.db.HaveKey(token.id);
     });
   }
 
@@ -2266,13 +2266,13 @@ export class WalletFile extends events.EventEmitter {
             : script.getPublicKeyHash()
         ).toString("hex");
 
-        if (await this.db.GetKey(hashId)) {
+        if (await this.db.HaveKey(hashId)) {
           return true;
         }
       } else if (script.isColdStakingOutP2PKH()) {
         let hashId = new Buffer(script.getPublicKeyHash()).toString("hex");
 
-        if (await this.db.GetKey(hashId)) {
+        if (await this.db.HaveKey(hashId)) {
           if (script.isColdStakingOutP2PKH()) {
             let stakingPk = script.getStakingPublicKeyHash();
             await this.AddStakingAddress(stakingPk, undefined, true);
@@ -2291,8 +2291,8 @@ export class WalletFile extends events.EventEmitter {
         );
 
         if (
-          (await this.db.GetKey(hashId)) ||
-          (await this.db.GetKey(hashIdVoting))
+          (await this.db.HaveKey(hashId)) ||
+          (await this.db.HaveKey(hashIdVoting))
         ) {
           if (script.isColdStakingOutP2PKH()) {
             let stakingPk = script.getStakingPublicKeyHash();
@@ -2313,7 +2313,7 @@ export class WalletFile extends events.EventEmitter {
       );
       if (hid) {
         let hashId = new Buffer(hid).toString("hex");
-        if (hashId && (await this.db.GetKey(hashId))) {
+        if (hashId && (await this.db.HaveKey(hashId))) {
           return true;
         }
       }

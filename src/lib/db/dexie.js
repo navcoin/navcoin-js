@@ -13,6 +13,8 @@ const algorithm = "aes-256-cbc";
 export default class Db extends events.EventEmitter {
   constructor() {
     super();
+
+    this.keys = {};
   }
 
   async Open(filename, secret, indexedDB, IDBKeyRange) {
@@ -91,6 +93,12 @@ export default class Db extends events.EventEmitter {
       this.db.on("versionchange", function (event) {
         self.db.close();
       });
+
+      let keysArray = await this.db.keys.toArray();
+
+      for (let key of keysArray) {
+        this.keys[key.hash] = true;
+      }
 
       this.emit("db_open");
     } catch (e) {
@@ -248,22 +256,24 @@ export default class Db extends events.EventEmitter {
     }
 
     try {
-      await this.db.keys
-        .add({
-          hash: hashId,
-          value: value,
-          type: type,
-          address: address,
-          used: 0,
-          change: change,
-          path: path,
-        })
-        .catch("DatabaseClosedError", (e) => {
-          console.error("DatabaseClosed error: " + e.message);
-        });
+      await this.db.keys.add({
+        hash: hashId,
+        value: value,
+        type: type,
+        address: address,
+        used: 0,
+        change: change,
+        path: path,
+      });
     } catch (e) {
+      console.error("DatabaseClosed error: " + e.message);
       return false;
     }
+    this.keys[hashId] = true;
+  }
+
+  async HaveKey(key) {
+    return this.keys[key];
   }
 
   async GetKey(key, password) {
