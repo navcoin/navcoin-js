@@ -297,7 +297,7 @@ export class WalletFile extends events.EventEmitter {
 
     if (!mk) return;
 
-    while ((await this.GetPoolSize(AddressTypes.XNAV)) < 3) {
+    while ((await this.GetPoolSize(AddressTypes.XNAV)) < 10) {
       await this.xNavCreateSubaddress(spendingPassword);
     }
   }
@@ -309,12 +309,12 @@ export class WalletFile extends events.EventEmitter {
 
     if (!mk) return;
 
-    while ((await this.GetPoolSize(AddressTypes.NAV)) < 4) {
+    while ((await this.GetPoolSize(AddressTypes.NAV)) < 10) {
       await this.NavCreateAddress(spendingPassword);
     }
 
     if (this.type == "navcash" || this.type == "navcoin-core") {
-      while ((await this.GetPoolSize(AddressTypes.NAV, 1)) < 4) {
+      while ((await this.GetPoolSize(AddressTypes.NAV, 1)) < 10) {
         await this.NavCreateAddress(spendingPassword, 1);
       }
     }
