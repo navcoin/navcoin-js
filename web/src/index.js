@@ -1,2 +1,2 @@
-import * as njs from 'navcoin-js';
+import * as njs from '../../dist/index.js';
 export {njs};

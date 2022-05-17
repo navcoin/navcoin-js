@@ -25,11 +25,10 @@
   },
   "homepage": "",
   "dependencies": {
-    "@liutianv1/bls-signatures": "0.0.1",
     "async-mutex": "^0.3.1",
     "css-loader": "^5.2.6",
-    "navcoin-js": "git://github.com/aguycalled/navcoin-js.git",
     "net": "^1.0.2",
+    "node-polyfill-webpack-plugin": "^1.1.4",
     "sass-loader": "^10.1.1",
     "style-loader": "^2.0.0",
     "tls": "0.0.1"
@@ -42,7 +41,7 @@
     "eslint-plugin-json": "^2.0.1",
     "eth-sig-util": "^2.5.3",
     "prettier": "^2.3.2",
-    "webpack": "^4.43.0",
+    "webpack": "^5.72.1",
     "webpack-cli": "^3.3.12",
     "webpack-dev-server": "^3.11.0"
   }
