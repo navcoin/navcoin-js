@@ -2475,6 +2475,21 @@ export class WalletFile extends events.EventEmitter {
     extraIn = 0,
     aggFee = 0
   ) {
+    if (typeof tokenId === "string") {
+      return await this.xNavCreateTransaction(
+        dest,
+        amount,
+        memo,
+        spendingPassword,
+        subtractFee,
+        Buffer.from(tokenId, "hex"),
+        tokenNftId,
+        vData,
+        extraKey,
+        extraIn,
+        aggFee
+      );
+    }
     if (amount < 0) throw new TypeError("Amount must be positive");
 
     let mvk = this.mvk;
