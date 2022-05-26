@@ -21,6 +21,8 @@ export { default as AddressTypes } from "./utils/address_types.js";
 import * as constants from "./utils/constants";
 import { sha256sha256 } from "@aguycalled/bitcore-lib/lib/crypto/hash";
 
+const p2p = require("@aguycalled/bitcore-p2p").Pool;
+
 export * as xNavBootstrap from "./xnav_bootstrap.js";
 
 let db = Db["Dexie"].default;
@@ -67,6 +69,7 @@ export class WalletFile extends events.EventEmitter {
     this.IDBKeyRange = options.IDBKeyRange;
 
     this.queue = new queue(options.queueSize);
+    this.p2pPool = undefined;
 
     let self = this;
 
@@ -715,6 +718,8 @@ export class WalletFile extends events.EventEmitter {
   }
 
   async Connect(resetFailed = true) {
+    this.Disconnect();
+
     if (!this.electrumNodes[this.electrumNodeIndex]) this.electrumNodeIndex = 0;
 
     if (!this.electrumNodes[this.electrumNodeIndex])
@@ -741,6 +746,29 @@ export class WalletFile extends events.EventEmitter {
           this.electrumNodes[this.electrumNodeIndex].port
       );
       this.connected = true;
+
+      this.p2pPool = new p2p({
+        dnsSeed: false, // prevent seeding with DNS discovered known peers upon connecting
+        listenAddr: false, // prevent new peers being added from addr messages
+        network: this.network,
+        maxSize: 1,
+        addrs: [
+          // initial peers to connect to
+          {
+            ip: {
+              v4: this.electrumNodes[this.electrumNodeIndex].host,
+            },
+          },
+        ],
+      });
+
+      console.log("connecting to p2p");
+      this.p2pPool.on("candidate", this.NewCandidate);
+      this.p2pPool.on("peerready", (_, server) => {
+        let sessionId = this.p2pPool.startSession();
+        console.log("started session", sessionId);
+      });
+      this.p2pPool.connect();
 
       if (resetFailed) this.failedConnections = 0;
 
@@ -994,6 +1022,9 @@ export class WalletFile extends events.EventEmitter {
     if (this.client) this.client.close();
     this.connected = false;
     this.queue.stop();
+
+    if (this.p2pPool) this.p2pPool.disconnect();
+    this.p2pPool = undefined;
 
     delete this.client;
     this.emit("disconnected");
@@ -3603,5 +3634,15 @@ export class WalletFile extends events.EventEmitter {
       (await this.GetCandidates()).length < 100
     )
       await this.db.AddTxCandidate(candidate, network);
+  }
+
+  async NewCandidate(session, candidate) {
+    console.log("New candidate from session " + session);
+    if (this.p2pPool) {
+      await this.AddCandidate(
+        candidate,
+        this.p2pPool.network.name == "livenet" ? "mainnet" : "testnet"
+      );
+    }
   }
 }
