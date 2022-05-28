@@ -10,6 +10,8 @@ import { default as electrum } from "@aguycalled/electrum-client-js";
 import { default as _ } from "lodash";
 import { default as Message } from "@aguycalled/bitcore-message";
 export { default as bitcore } from "@aguycalled/bitcore-lib";
+export { default as Mnemonic } from "@aguycalled/bitcore-mnemonic";
+export * as electrumMnemonic from "electrum-mnemonic";
 
 import { default as nodes } from "./nodes/index.js";
 import { default as queue } from "./utils/queue.js";
@@ -3637,8 +3639,8 @@ export class WalletFile extends events.EventEmitter {
   }
 
   async NewCandidate(session, candidate) {
-    console.log("New candidate from session " + session);
     if (this.p2pPool) {
+      console.log("New candidate from session " + session, candidate);
       await this.AddCandidate(
         candidate,
         this.p2pPool.network.name == "livenet" ? "mainnet" : "testnet"
