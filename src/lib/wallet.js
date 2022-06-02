@@ -2588,6 +2588,11 @@ export class WalletFile extends events.EventEmitter {
     ignoreFees = false,
     aggFee = 0
   ) {
+    let consensus = this.GetConsensusParameters();
+
+    if (consensus[24]?.value != 1)
+      throw new Error("Private Tokens and NFTs are not active yet");
+
     if (amount < 0) throw new TypeError("Amount must be positive");
 
     tokenId = new Buffer(tokenId, "hex");
@@ -2898,6 +2903,11 @@ export class WalletFile extends events.EventEmitter {
   }
 
   async CreateToken(name, token_code, token_supply, spendingPassword) {
+    let consensus = this.GetConsensusParameters();
+
+    if (consensus[24]?.value != 1)
+      throw new Error("Private Tokens and NFTs are not active yet");
+
     let derived = await this.DeriveSpendingKeyFromStringHash(
       "token/",
       name + token_code,
@@ -2940,6 +2950,11 @@ export class WalletFile extends events.EventEmitter {
   }
 
   async MintToken(id, dest, amount, spendingPassword) {
+    let consensus = this.GetConsensusParameters();
+
+    if (consensus[24]?.value != 1)
+      throw new Error("Private Tokens and NFTs are not active yet");
+
     let token = await this.GetTokenInfo(id);
 
     if (!token || (token && token.name == undefined))
@@ -2976,6 +2991,11 @@ export class WalletFile extends events.EventEmitter {
   }
 
   async CreateNft(name, scheme, token_supply, spendingPassword) {
+    let consensus = this.GetConsensusParameters();
+
+    if (consensus[24]?.value != 1)
+      throw new Error("Private Tokens and NFTs are not active yet");
+
     let derived = await this.DeriveSpendingKeyFromStringHash(
       "token/",
       name + scheme,
@@ -3120,6 +3140,11 @@ export class WalletFile extends events.EventEmitter {
   }
 
   async MintNft(id, nftid, dest, metadata, spendingPassword) {
+    let consensus = this.GetConsensusParameters();
+
+    if (consensus[24]?.value != 1)
+      throw new Error("Private Tokens and NFTs are not active yet");
+
     let token = await this.GetTokenInfo(id);
 
     if (!token || (token && token.name == undefined))
