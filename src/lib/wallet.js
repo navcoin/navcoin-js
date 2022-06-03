@@ -1596,20 +1596,26 @@ export class WalletFile extends events.EventEmitter {
           id,
           parseInt(nftId)
         );
-
         if (!token || (token && !token.nfts)) return undefined;
 
+        let retArray = [];
+
         for (let n in token.nfts) {
-          if (token.nfts[n].index != nftId) continue;
-
-          await this.db.AddNftInfo(token.id, nftId, token.nfts[n].metadata);
-
-          return {
-            id: token.id + "-" + nftId,
+          if (nftId != -1 && token.nfts[n].index != nftId) continue;
+          await this.db.AddNftInfo(
+            token.id,
+            token.nfts[n].index,
+            token.nfts[n].metadata
+          );
+          retArray.push({
+            id: token.nfts[n].index,
             metadata: token.nfts[n].metadata,
-          };
+          });
         }
+
+        return retArray;
       } catch (e) {
+        console.log(e);
         return undefined;
       }
     } else {
