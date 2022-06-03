@@ -3248,6 +3248,7 @@ export class WalletFile extends events.EventEmitter {
 
     return {
       tx: combinedTx.toString(),
+      fee: combinedTx.feeAmount,
     };
   }
 
