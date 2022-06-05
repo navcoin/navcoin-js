@@ -689,7 +689,8 @@ export default class Db extends events.EventEmitter {
     ret.sort((a, b) => {
       if (a.height == b.height) {
         if (a.pos == b.pos) return a.amount > 0 && b.amount < 0 ? -1 : 1;
-        else return a.pos - b.pos;
+        else if (a.timestamp == b.timestamp) return a.pos - b.pos;
+        else return b.timestamp - a.timestamp;
       }
       return b.height - a.height;
     });
