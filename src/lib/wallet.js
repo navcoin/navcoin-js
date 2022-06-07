@@ -2697,7 +2697,6 @@ export class WalletFile extends events.EventEmitter {
 
   async VerifyOrder(order) {
     if (!this.client) return;
-
     const tx = bitcore.Transaction(order.tx[0]);
 
     let valueKey;
@@ -2724,7 +2723,7 @@ export class WalletFile extends events.EventEmitter {
         else valueKey = blsct.mcl.add(valueKey, output.bp.V[0]);
       } else {
         let vFr = new blsct.mcl.Fr();
-        vFr.setInt(output.amount);
+        vFr.setInt(output.amount ? output.amount : output.satoshis);
         let vComm = blsct.mcl.mul(
           blsct.H(output.tokenId, output.tokenNftId),
           vFr
@@ -2738,7 +2737,7 @@ export class WalletFile extends events.EventEmitter {
       blsct.H(output.tokenId, output.tokenNftId);
 
       let vFr = new blsct.mcl.Fr();
-      vFr.setInt(output.amount);
+      vFr.setInt(output.amount ? output.amount : output.satoshis);
       let vComm = blsct.mcl.mul(
         blsct.H(output.tokenId, output.tokenNftId),
         vFr
@@ -2751,7 +2750,7 @@ export class WalletFile extends events.EventEmitter {
       blsct.H(output.tokenId, output.tokenNftId);
 
       let vFr = new blsct.mcl.Fr();
-      vFr.setInt(output.amount);
+      vFr.setInt(output.amount ? output.amount : output.satoshis);
       let vComm = blsct.mcl.mul(
         blsct.H(output.tokenId, output.tokenNftId),
         vFr
@@ -2768,7 +2767,7 @@ export class WalletFile extends events.EventEmitter {
         else valueKey = blsct.mcl.sub(valueKey, output.bp.V[0]);
       } else {
         let vFr = new blsct.mcl.Fr();
-        vFr.setInt(output.amount);
+        vFr.setInt(output.amount ? output.amount : output.satoshis);
         let vComm = blsct.mcl.mul(
           blsct.H(output.tokenId, output.tokenNftId),
           vFr
