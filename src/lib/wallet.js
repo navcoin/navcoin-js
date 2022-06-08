@@ -80,6 +80,7 @@ export class WalletFile extends events.EventEmitter {
     });
 
     this.queue.on("end", () => {
+      self.spendingPassword = "";
       self.emit("sync_finished");
     });
 
@@ -279,7 +280,6 @@ export class WalletFile extends events.EventEmitter {
     this.poolFilled = true;
 
     this.mnemonic = "";
-    this.spendingPassword = "";
 
     let forceZap = false;
 
@@ -926,7 +926,10 @@ export class WalletFile extends events.EventEmitter {
 
     this.emit("bootstrap_finished");
 
-    if (txs.list.length == 0) this.emit("sync_finished");
+    if (txs.list.length == 0) {
+      this.spendingPassword = "";
+      this.emit("sync_finished");
+    }
   }
 
   async SyncTxHashes(staking = undefined, txs) {
@@ -1562,7 +1565,7 @@ export class WalletFile extends events.EventEmitter {
           token.id,
           token.name,
           token.token_code ? token.token_code : token.scheme,
-          token.max_supply,
+          token.max_supply / (token.token_code ? 1e8 : 1),
           token.version,
           token.pubkey
         );
@@ -1571,7 +1574,7 @@ export class WalletFile extends events.EventEmitter {
           id: token.id,
           name: token.name,
           code: token.token_code ? token.token_code : token.scheme,
-          supply: token.max_supply,
+          supply: token.max_supply / (token.token_code ? 1e8 : 1),
           version: token.version,
           key: token.pubkey,
         };
@@ -1622,7 +1625,7 @@ export class WalletFile extends events.EventEmitter {
     }
   }
 
-  async AddOutput(outpoint, out) {
+  async AddOutput(outpoint, out, height) {
     let amount = out.isCt() || out.isNft() ? out.amount : out.satoshis;
     let label = out.isCt()
       ? out.memo
@@ -1680,8 +1683,10 @@ export class WalletFile extends events.EventEmitter {
         await this.db.UseNavAddress(
           out.script.toAddress(this.network).toString()
         );
+        await this.NavFillKeyPool(this.spendingPassword);
       } else {
         await this.db.UseXNavAddress(hashId);
+        await this.xNavFillKeyPool(this.spendingPassword);
       }
 
       return true;
@@ -2043,7 +2048,7 @@ export class WalletFile extends events.EventEmitter {
             id,
             values[2].toString(),
             values[4].toString(),
-            values[5] / 1e8,
+            values[5] / (values[3] == 0 ? 1e8 : 1),
             values[3],
             values[1]
           );
