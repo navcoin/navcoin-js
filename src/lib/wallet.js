@@ -149,7 +149,6 @@ export class WalletFile extends events.EventEmitter {
 
     options = options || {};
 
-    this.daoConsensus = {};
     this.daoConsultations = {};
     this.daoProposals = {};
 
@@ -779,7 +778,7 @@ export class WalletFile extends events.EventEmitter {
       let tip = (await this.client.blockchain_headers_subscribe()).height;
       let self = this;
       this.client.blockchain_consensus_subscribe().then((consensus) => {
-        self.daoConsensus = consensus;
+        this.db.WriteConsensusParameters(consensus);
       });
       await this.client.blockchain_dao_subscribe();
 
@@ -811,7 +810,7 @@ export class WalletFile extends events.EventEmitter {
       this.client.subscribe.on(
         "blockchain.consensus.subscribe",
         async (event) => {
-          this.daoConsensus = event;
+          this.db.WriteConsensusParameters(event);
         }
       );
 
@@ -885,8 +884,8 @@ export class WalletFile extends events.EventEmitter {
     return await this.db.GetCandidates(this.network);
   }
 
-  GetConsensusParameters() {
-    return this.daoConsensus;
+  async GetConsensusParameters() {
+    return await this.db.GetConsensusParameters();
   }
 
   GetConsultations() {
@@ -2594,7 +2593,7 @@ export class WalletFile extends events.EventEmitter {
     ignoreFees = false,
     aggFee = 0
   ) {
-    let consensus = this.GetConsensusParameters();
+    let consensus = await this.GetConsensusParameters();
 
     if (consensus[24]?.value != 1)
       throw new Error("Private Tokens and NFTs are not active yet");
@@ -2908,7 +2907,7 @@ export class WalletFile extends events.EventEmitter {
   }
 
   async CreateToken(name, token_code, token_supply, spendingPassword) {
-    let consensus = this.GetConsensusParameters();
+    let consensus = await this.GetConsensusParameters();
 
     if (consensus[24]?.value != 1)
       throw new Error("Private Tokens and NFTs are not active yet");
@@ -2955,7 +2954,7 @@ export class WalletFile extends events.EventEmitter {
   }
 
   async MintToken(id, dest, amount, spendingPassword) {
-    let consensus = this.GetConsensusParameters();
+    let consensus = await this.GetConsensusParameters();
 
     if (consensus[24]?.value != 1)
       throw new Error("Private Tokens and NFTs are not active yet");
@@ -2996,7 +2995,7 @@ export class WalletFile extends events.EventEmitter {
   }
 
   async CreateNft(name, scheme, token_supply, spendingPassword) {
-    let consensus = this.GetConsensusParameters();
+    let consensus = await this.GetConsensusParameters();
 
     if (consensus[24]?.value != 1)
       throw new Error("Private Tokens and NFTs are not active yet");
@@ -3145,7 +3144,7 @@ export class WalletFile extends events.EventEmitter {
   }
 
   async MintNft(id, nftid, dest, metadata, spendingPassword) {
-    let consensus = this.GetConsensusParameters();
+    let consensus = await this.GetConsensusParameters();
 
     if (consensus[24]?.value != 1)
       throw new Error("Private Tokens and NFTs are not active yet");
@@ -3403,7 +3402,7 @@ export class WalletFile extends events.EventEmitter {
   }
 
   async UpdateName(name, subdomain, key, value, spendingPassword) {
-    let consensus = this.GetConsensusParameters();
+    let consensus = await this.GetConsensusParameters();
 
     if (!consensus[22]) throw new Error("Could not read consensus parameters");
 

@@ -69,7 +69,7 @@ export default class Db extends events.EventEmitter {
         }
       );
 
-      this.db.version(6).stores({
+      this.db.version(7).stores({
         keys: "&hash, type, address, used, change",
         walletTxs: "&id, hash, amount, type, confirmed, height, pos, timestamp",
         outPoints: "&id, spentIn, amount, label, type",
@@ -82,6 +82,7 @@ export default class Db extends events.EventEmitter {
         names: "&name",
         tokens: "&id",
         nfts: "&id",
+        consensus: "&id",
       });
 
       this.dbTx.version(2).stores({
@@ -916,7 +917,7 @@ export default class Db extends events.EventEmitter {
 
     try {
       await this.dbTx.candidates
-        .add({
+        .put({
           network: network,
           tx: candidate.tx.toString(),
           fee: candidate.fee,
@@ -950,6 +951,30 @@ export default class Db extends events.EventEmitter {
 
     return await this.dbTx.txKeys
       .get(hash)
+      .catch("DatabaseClosedError", (e) => {
+        console.error("DatabaseClosed error: " + e.message);
+      });
+  }
+
+  async WriteConsensusParameters(parameters) {
+    if (!this.db) return;
+
+    for (let id in parameters) {
+      await this.db.consensus
+        .put(parameters[id])
+        .catch("DatabaseClosedError", (e) => {
+          console.error("DatabaseClosed error: " + e.message);
+        });
+    }
+
+    return true;
+  }
+
+  async GetConsensusParameters() {
+    if (!this.db) return;
+
+    return await this.db.consensus
+      .toArray()
       .catch("DatabaseClosedError", (e) => {
         console.error("DatabaseClosed error: " + e.message);
       });
