@@ -3221,14 +3221,18 @@ export class WalletFile extends events.EventEmitter {
     let dests = [
       {
         dest: bitcore.Script.fromHex("6a"),
-        amount: order.pay[0].amount,
+        amount: order.pay[0].amount
+          ? order.pay[0].amount
+          : order.pay[0].satoshis,
         tokenId: order.pay[0].tokenId,
         tokenNftId: order.pay[0].tokenNftId,
         ignore: true,
       },
       {
         dest: (await this.xNavReceivingAddresses(true))[0].address,
-        amount: order.receive[0].amount,
+        amount: order.receive[0].amount
+          ? order.receive[0].amount
+          : order.receive[0].satoshis,
         tokenId: order.receive[0].tokenId,
         tokenNftId: order.receive[0].tokenNftId,
       },
