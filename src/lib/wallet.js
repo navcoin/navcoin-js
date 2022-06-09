@@ -1626,7 +1626,7 @@ export class WalletFile extends events.EventEmitter {
   }
 
   async AddOutput(outpoint, out, height) {
-    let amount = out.isCt() || out.isNft() ? out.amount : out.satoshis;
+    let amount = out.amount ? out.amount : out.satoshis;
     let label = out.isCt()
       ? out.memo
       : out.script.toAddress(this.network).toString();
@@ -1829,7 +1829,7 @@ export class WalletFile extends events.EventEmitter {
                 ] = 0;
               deltaXNav[
                 prevOut.tokenId.toString("hex") + ":" + prevOut.tokenNftId
-              ] -= prevOut.amount;
+              ] -= prevOut.amount ? prevOut.amount : prevOut.satoshis;
               memos.in.push(prevOut.memo);
             }
           }
@@ -1941,7 +1941,7 @@ export class WalletFile extends events.EventEmitter {
                   out.tokenId.toString("hex") + ":" + out.tokenNftId
                 ] = 0;
               deltaXNav[out.tokenId.toString("hex") + ":" + out.tokenNftId] +=
-                out.amount;
+                out.amount ? out.amount : out.satoshis;
               memos.out.push(out.memo);
             }
           }
@@ -3221,18 +3221,14 @@ export class WalletFile extends events.EventEmitter {
     let dests = [
       {
         dest: bitcore.Script.fromHex("6a"),
-        amount: order.pay[0].amount
-          ? order.pay[0].amount
-          : order.pay[0].satoshis,
+        amount: order.pay[0].amount,
         tokenId: order.pay[0].tokenId,
         tokenNftId: order.pay[0].tokenNftId,
         ignore: true,
       },
       {
         dest: (await this.xNavReceivingAddresses(true))[0].address,
-        amount: order.receive[0].amount
-          ? order.receive[0].amount
-          : order.receive[0].satoshis,
+        amount: order.receive[0].amount,
         tokenId: order.receive[0].tokenId,
         tokenNftId: order.receive[0].tokenNftId,
       },
