@@ -444,12 +444,21 @@ export default class Db extends events.EventEmitter {
   async GetXNavReceivingAddresses(all) {
     if (!this.db) return [];
 
-    return await this.db.keys
+    let ret = await this.db.keys
       .where({ type: AddressTypes.XNAV })
       .toArray()
       .catch("DatabaseClosedError", (e) => {
         console.error("DatabaseClosed error: " + e.message);
       });
+
+    ret.sort((a, b) => {
+      if (a.value[0] == b.value[0]) {
+        return a.value[1] - b.value[1];
+      }
+      return a.value[0] - b.value[0];
+    });
+
+    return ret;
   }
 
   async GetNavReceivingAddresses(all) {

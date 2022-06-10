@@ -79,9 +79,14 @@ export class WalletFile extends events.EventEmitter {
       self.emit("sync_status", progress, pending, total);
     });
 
-    this.queue.on("end", () => {
-      self.spendingPassword = "";
-      self.emit("sync_finished");
+    this.queue.on("end", async () => {
+      if ((await self.GetPoolSize(AddressTypes.XNAV)) < 10) {
+        this.Log("Need to fill the xNAV key pool");
+        await self.xNavFillKeyPool(self.spendingPassword, 20);
+      } else {
+        self.spendingPassword = "";
+        self.emit("sync_finished");
+      }
     });
 
     this.queue.on("started", () => {
@@ -296,32 +301,54 @@ export class WalletFile extends events.EventEmitter {
     this.emit("loaded");
   }
 
-  async xNavFillKeyPool(spendingPassword) {
+  async xNavFillKeyPool(spendingPassword, count = 10) {
     let mk = await this.GetMasterKey("xNavSpend", spendingPassword);
 
     if (!mk) return;
 
-    while ((await this.GetPoolSize(AddressTypes.XNAV)) < 10) {
+    let filled = 0;
+
+    while ((await this.GetPoolSize(AddressTypes.XNAV)) < count) {
+      filled++;
       await this.xNavCreateSubaddress(spendingPassword);
+    }
+
+    if (this.poolFilled && filled > 0) {
+      this.Log("xNAV pool was filled with " + filled + " new keys. Resyncing.");
+      await this.SyncScriptHash(
+        Buffer.from(
+          bitcore.crypto.Hash.sha256(
+            bitcore.Script.fromHex("51").toBuffer()
+          ).reverse()
+        ).toString("hex"),
+        undefined,
+        true
+      );
     }
   }
 
-  async NavFillKeyPool(spendingPassword) {
+  async NavFillKeyPool(spendingPassword, count = 10) {
     if (this.type === "next" || this.type == "watch") return;
 
     let mk = await this.GetMasterKey("nav", spendingPassword);
 
     if (!mk) return;
 
-    while ((await this.GetPoolSize(AddressTypes.NAV)) < 10) {
+    let filled = 0;
+
+    while ((await this.GetPoolSize(AddressTypes.NAV)) < count) {
+      filled++;
       await this.NavCreateAddress(spendingPassword);
     }
 
     if (this.type == "navcash" || this.type == "navcoin-core") {
-      while ((await this.GetPoolSize(AddressTypes.NAV, 1)) < 10) {
+      while ((await this.GetPoolSize(AddressTypes.NAV, 1)) < count) {
+        filled++;
         await this.NavCreateAddress(spendingPassword, 1);
       }
     }
+
+    this.Log("NAV pool was filled with " + filled + " new keys.");
   }
 
   async xNavReceivingAddresses(all = true) {
@@ -1066,10 +1093,12 @@ export class WalletFile extends events.EventEmitter {
     }
   }
 
-  async SyncScriptHash(scripthash, txs) {
+  async SyncScriptHash(scripthash, txs, reset = false) {
     let currentHistory = [];
     let prevMaxHeight = -10;
     let lb = this.lastBlock + 0;
+
+    this.Log("Syncing " + scripthash);
 
     let historyRange = {};
 
@@ -1082,9 +1111,11 @@ export class WalletFile extends events.EventEmitter {
 
       let currentLastHeight = this.creationTip ? this.creationTip : 0;
 
-      for (let i in currentHistory) {
-        if (currentHistory[i].height > currentLastHeight)
-          currentLastHeight = currentHistory[i].height;
+      if (!reset) {
+        for (let i in currentHistory) {
+          if (currentHistory[i].height > currentLastHeight)
+            currentLastHeight = currentHistory[i].height;
+        }
       }
 
       let filteredHistory = currentHistory.filter(
@@ -1683,10 +1714,12 @@ export class WalletFile extends events.EventEmitter {
         await this.db.UseNavAddress(
           out.script.toAddress(this.network).toString()
         );
-        await this.NavFillKeyPool(this.spendingPassword);
+        if ((await this.GetPoolSize(AddressTypes.NAV)) < 10) {
+          this.Log("Filling NAV key pool");
+          await this.NavFillKeyPool(this.spendingPassword, 20);
+        }
       } else {
         await this.db.UseXNavAddress(hashId);
-        await this.xNavFillKeyPool(this.spendingPassword);
       }
 
       return true;
@@ -1964,7 +1997,7 @@ export class WalletFile extends events.EventEmitter {
             if (!deltaXNav[out.tokenId.toString("hex") + ":" + out.tokenNftId])
               deltaXNav[out.tokenId.toString("hex") + ":" + out.tokenNftId] = 0;
             deltaXNav[out.tokenId.toString("hex") + ":" + out.tokenNftId] +=
-              out.satoshis;
+              out.amount ? out.amount : out.satoshis;
           }
         }
       } else if (
@@ -2497,11 +2530,6 @@ export class WalletFile extends events.EventEmitter {
       tokenNftId
     );
 
-    if (await this.GetMasterKey("nav", spendingPassword)) {
-      await this.xNavFillKeyPool(spendingPassword);
-      await this.NavFillKeyPool(spendingPassword);
-    }
-
     return { tx: [tx.toString()], fee: tx.feeAmount };
   }
 
@@ -2576,11 +2604,6 @@ export class WalletFile extends events.EventEmitter {
       extraIn,
       aggFee
     );
-
-    if (await this.GetMasterKey("nav", spendingPassword)) {
-      await this.xNavFillKeyPool(spendingPassword);
-      await this.NavFillKeyPool(spendingPassword);
-    }
 
     return { tx: [tx.toString()], fee: tx.feeAmount };
   }
@@ -2690,11 +2713,6 @@ export class WalletFile extends events.EventEmitter {
     }
 
     let combinedTx = blsct.CombineTransactions(toCombine);
-
-    if (await this.GetMasterKey("nav", spendingPassword)) {
-      await this.xNavFillKeyPool(spendingPassword);
-      await this.NavFillKeyPool(spendingPassword);
-    }
 
     return { tx: [combinedTx.toString()], fee: combinedTx.feeAmount };
   }
@@ -3200,7 +3218,7 @@ export class WalletFile extends events.EventEmitter {
         order.pay[i].tokenId = new Buffer(new Uint8Array(32));
       if (!Buffer.isBuffer(order.receive[i].tokenId))
         order.pay[i].tokenId = new Buffer(order.pay[i].tokenId, "hex");
-      if (!order.pay[i].tokenNftId) order.pay[i].tokenNftId = -1;
+      if (!order.pay[i].tokenNftId === undefined) order.pay[i].tokenNftId = -1;
     }
 
     for (let i in order.receive) {
@@ -3208,7 +3226,8 @@ export class WalletFile extends events.EventEmitter {
         order.receive[i].tokenId = new Buffer(new Uint8Array(32));
       if (!Buffer.isBuffer(order.receive[i].tokenId))
         order.receive[i].tokenId = new Buffer(order.receive[i].tokenId, "hex");
-      if (!order.receive[i].tokenNftId) order.receive[i].tokenNftId = -1;
+      if (!order.receive[i].tokenNftId === undefined)
+        order.receive[i].tokenNftId = -1;
     }
 
     let utxos = await this.GetUtxos(
@@ -3638,11 +3657,6 @@ export class WalletFile extends events.EventEmitter {
     if (tx.inputs.length > 0) {
       ret.fee += fee;
       ret.tx.push(tx.toString());
-    }
-
-    if (await this.GetMasterKey("nav", spendingPassword)) {
-      await this.xNavFillKeyPool(spendingPassword);
-      await this.NavFillKeyPool(spendingPassword);
     }
 
     return ret;
