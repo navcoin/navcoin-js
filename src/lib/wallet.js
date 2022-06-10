@@ -937,6 +937,10 @@ export class WalletFile extends events.EventEmitter {
   }
 
   async Sync(staking = undefined) {
+    if (!this.client || this.client.status === 0) {
+      await this.Connect();
+    }
+
     let txs = new List();
 
     this.emit("bootstrap_started");
