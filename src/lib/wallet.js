@@ -6,7 +6,7 @@ import { default as List } from "./utils/list.js";
 import { default as Mnemonic } from "@aguycalled/bitcore-mnemonic";
 import * as electrumMnemonic from "electrum-mnemonic";
 import { default as bitcore } from "@aguycalled/bitcore-lib";
-import { default as electrum } from "@aguycalled/electrum-client-js";
+import { default as electrum } from "@aguycalled/electrum-client";
 import { default as _ } from "lodash";
 import { default as Message } from "@aguycalled/bitcore-message";
 export { default as bitcore } from "@aguycalled/bitcore-lib";
@@ -24,6 +24,9 @@ import * as constants from "./utils/constants";
 import { sha256sha256 } from "@aguycalled/bitcore-lib/lib/crypto/hash";
 
 const p2p = require("@aguycalled/bitcore-p2p").Pool;
+const Web3 = require("web3");
+const net = require("net");
+const tls = require("tls");
 
 export * as xNavBootstrap from "./xnav_bootstrap.js";
 
@@ -72,6 +75,7 @@ export class WalletFile extends events.EventEmitter {
 
     this.queue = new queue(options.queueSize);
     this.p2pPool = undefined;
+    this.web3 = undefined;
 
     let self = this;
 
@@ -754,8 +758,10 @@ export class WalletFile extends events.EventEmitter {
       throw new Error("No nodes in the list, use AddNode");
 
     this.client = new electrum(
-      this.electrumNodes[this.electrumNodeIndex].host,
+      net,
+      tls,
       this.electrumNodes[this.electrumNodeIndex].port,
+      this.electrumNodes[this.electrumNodeIndex].host,
       this.electrumNodes[this.electrumNodeIndex].proto
     );
 
@@ -766,7 +772,7 @@ export class WalletFile extends events.EventEmitter {
     );
 
     try {
-      await this.client.connect("navcoin-js", "1.5");
+      await this.client.initElectrum({ client: "navcoin-js", version: "1.5" });
       this.emit(
         "connected",
         this.electrumNodes[this.electrumNodeIndex].host +
