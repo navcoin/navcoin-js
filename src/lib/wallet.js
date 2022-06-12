@@ -2089,6 +2089,34 @@ export class WalletFile extends events.EventEmitter {
             values[3],
             values[1]
           );
+
+          let derived = await this.DeriveSpendingKeyFromStringHash(
+            "token/",
+            values[2].toString() + values[4].toString(),
+            this.spendingPassword
+          );
+          let key = blsct.SkToPubKey(new Buffer(derived).toString("hex"));
+
+          let keyId = new Buffer(
+            bitcore.crypto.Hash.sha256sha256(
+              Buffer.concat([new Buffer([48]), new Buffer(key.serialize())])
+            )
+          )
+            .reverse()
+            .toString("hex");
+
+          if (keyId == id) {
+            await this.db.AddKey(
+              keyId.toString("hex"),
+              key.serialize().toString("hex"),
+              AddressTypes.TOKEN,
+              values[2],
+              false,
+              false,
+              values[4],
+              this.spendingPassword
+            );
+          }
         } catch (e) {
           console.log(e);
         }
@@ -2976,7 +3004,17 @@ export class WalletFile extends events.EventEmitter {
     )
       .reverse()
       .toString("hex");
-    return ret;
+
+    await this.db.AddKey(
+      ret.token_id.toString("hex"),
+      key.serialize().toString("hex"),
+      AddressTypes.TOKEN,
+      name,
+      false,
+      false,
+      token_code,
+      spendingPassword
+    );
     return ret;
   }
 
