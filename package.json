@@ -1,6 +1,6 @@
 {
   "name": "navcoin-js",
-  "version": "1.1.144",
+  "version": "1.1.143",
   "description": "Navcoin Javascript Library",
   "main": "./dist/index.js",
   "scripts": {
@@ -19,7 +19,7 @@
     "@aguycalled/bitcore-mnemonic": "^1.5.4",
     "@aguycalled/bitcore-p2p": "^5.0.14",
     "@aguycalled/dexie-encrypted": "^2.0.4",
-    "@aguycalled/electrum-client": "^2.0.0",
+    "@aguycalled/electrum-client-js": "^0.1.8",
     "@aguycalled/noble-bls12-381": "^1.2.1",
     "async-mutex": "^0.3.2",
     "babelify": "^10.0.0",
@@ -36,7 +36,6 @@
     "pouchdb-adapter-websql": "^7.0.0",
     "pouchdb-all-dbs": "^1.1.1",
     "queue": "^6.0.2",
-    "web3": "^1.7.3",
     "websql": "^1.0.0"
   },
   "browser": {
