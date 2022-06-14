@@ -139,7 +139,8 @@ export default class Db extends events.EventEmitter {
 
   static async RemoveWallet(filename) {
     try {
-      await new Dexie.delete(filename);
+      let d = new Dexie();
+      await d.delete(filename);
       return true;
     } catch (e) {
       console.log(e);
