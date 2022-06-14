@@ -1600,7 +1600,7 @@ export class WalletFile extends events.EventEmitter {
           token.id,
           token.name,
           token.token_code ? token.token_code : token.scheme,
-          token.max_supply / (token.token_code ? 1e8 : 1),
+          token.max_supply,
           token.version,
           token.pubkey
         );
@@ -1609,7 +1609,7 @@ export class WalletFile extends events.EventEmitter {
           id: token.id,
           name: token.name,
           code: token.token_code ? token.token_code : token.scheme,
-          supply: token.max_supply / (token.token_code ? 1e8 : 1),
+          supply: token.max_supply,
           version: token.version,
           key: token.pubkey,
         };

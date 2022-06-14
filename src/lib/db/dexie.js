@@ -142,6 +142,7 @@ export default class Db extends events.EventEmitter {
       await new Dexie.delete(filename);
       return true;
     } catch (e) {
+      console.log(e);
       return false;
     }
   }
