@@ -1,6 +1,6 @@
 {
   "name": "navcoin-js",
-  "version": "1.1.148",
+  "version": "1.1.149",
   "description": "Navcoin Javascript Library",
   "main": "./dist/index.js",
   "scripts": {
@@ -19,7 +19,7 @@
     "@aguycalled/bitcore-mnemonic": "^1.5.4",
     "@aguycalled/bitcore-p2p": "^5.0.14",
     "@aguycalled/dexie-encrypted": "^2.0.4",
-    "@aguycalled/electrum-client-js": "^0.1.11",
+    "@aguycalled/electrum-client-js": "^0.1.14",
     "@aguycalled/noble-bls12-381": "^1.2.1",
     "async-mutex": "^0.3.2",
     "babelify": "^10.0.0",

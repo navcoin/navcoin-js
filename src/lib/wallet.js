@@ -746,6 +746,8 @@ export class WalletFile extends events.EventEmitter {
   }
 
   async Connect(resetFailed = true) {
+    if (this.client && this.client.status == 1) return false;
+
     this.Disconnect();
 
     if (!this.electrumNodes[this.electrumNodeIndex]) this.electrumNodeIndex = 0;
@@ -765,8 +767,22 @@ export class WalletFile extends events.EventEmitter {
       }:${this.electrumNodes[this.electrumNodeIndex].port}`
     );
 
-    try {
-      await this.client.connect("navcoin-js", "1.5");
+    let self = this;
+
+    this.client.subscribe.on("socket.error", async (e) => {
+      this.connected = false;
+      this.emit("disconnected");
+      this.emit("connection_failed");
+      console.error(
+        `error connecting to electrum ${
+          this.electrumNodes[this.electrumNodeIndex].host
+        }:${this.electrumNodes[this.electrumNodeIndex].port}: ${e}`
+      );
+
+      await self.ManageElectrumError(e);
+    });
+
+    this.client.subscribe.on("ready", async () => {
       this.emit(
         "connected",
         this.electrumNodes[this.electrumNodeIndex].host +
@@ -793,8 +809,10 @@ export class WalletFile extends events.EventEmitter {
       console.log("connecting to p2p");
       this.p2pPool.on("candidate", this.NewCandidate);
       this.p2pPool.on("peerready", (_, server) => {
-        let sessionId = this.p2pPool.startSession();
-        console.log("started session", sessionId);
+        if (this.p2pPool) {
+          let sessionId = this.p2pPool.startSession();
+          console.log("started session", sessionId);
+        }
       });
       this.p2pPool.connect();
 
@@ -803,7 +821,6 @@ export class WalletFile extends events.EventEmitter {
       this.emit("bootstrap_started");
 
       let tip = (await this.client.blockchain_headers_subscribe()).height;
-      let self = this;
       this.client.blockchain_consensus_subscribe().then((consensus) => {
         this.db.WriteConsensusParameters(consensus);
       });
@@ -827,7 +844,7 @@ export class WalletFile extends events.EventEmitter {
         "blockchain.outpoint.subscribe",
         async (event) => {
           if (event[1] && event[1].spender_txhash)
-            this.db.RemoveTxCandidate(
+            await this.db.RemoveTxCandidate(
               event[0][0] + ":" + event[0][1],
               this.network
             );
@@ -837,7 +854,7 @@ export class WalletFile extends events.EventEmitter {
       this.client.subscribe.on(
         "blockchain.consensus.subscribe",
         async (event) => {
-          this.db.WriteConsensusParameters(event);
+          await this.db.WriteConsensusParameters(event);
         }
       );
 
@@ -849,7 +866,7 @@ export class WalletFile extends events.EventEmitter {
           candidates[i].input.split(":")[1]
         );
         if (currentStatus && currentStatus.spender_txhash)
-          this.db.RemoveTxCandidate(candidates[i].input, this.network);
+          await this.db.RemoveTxCandidate(candidates[i].input, this.network);
       }
 
       this.client.subscribe.on("blockchain.dao.subscribe", async (event) => {
@@ -876,35 +893,21 @@ export class WalletFile extends events.EventEmitter {
           type[hash] = event[0].w;
         }
       });
-    } catch (e) {
-      this.connected = false;
-      this.emit("connection_failed");
-      console.error(
-        `error connecting to electrum ${
-          this.electrumNodes[this.electrumNodeIndex].host
-        }:${this.electrumNodes[this.electrumNodeIndex].port}: ${e}`
-      );
-      return await this.ManageElectrumError(e);
-    }
+      if (!this.client) return;
 
-    let self = this;
+      await this.Sync();
 
-    if (!this.client) return;
-
-    await this.Sync();
-
-    try {
       this.client.subscribe.on(
         "blockchain.scripthash.subscribe",
         async (event) => {
           await self.ReceivedScriptHashStatus(event[0], event[1]);
         }
       );
-    } catch (e) {
-      console.error(`error electrum: ${e}`);
-      await this.ManageElectrumError(e);
-      return false;
-    }
+    });
+
+    await this.client.connect("navcoin-js", "1.5");
+
+    if (this.client.status == 0) return false;
   }
 
   async GetCandidates() {
