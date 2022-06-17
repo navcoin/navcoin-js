@@ -2773,7 +2773,7 @@ export class WalletFile extends events.EventEmitter {
       let prevTx = await this.GetTx(input.prevTxId.toString("hex"));
 
       let output = prevTx.tx.outputs[input.outputIndex];
-      blsct.H(output.tokenId, output.tokenNftId);
+      blsct.H(output.tokenId, parseInt(output.tokenNftId.toString()));
 
       if (output.isCt()) {
         if (!valueKey) valueKey = output.bp.V[0];
@@ -2782,7 +2782,7 @@ export class WalletFile extends events.EventEmitter {
         let vFr = new blsct.mcl.Fr();
         vFr.setInt(output.amount ? output.amount : output.satoshis);
         let vComm = blsct.mcl.mul(
-          blsct.H(output.tokenId, output.tokenNftId),
+          blsct.H(output.tokenId, parseInt(output.tokenNftId.toString())),
           vFr
         );
         if (!valueKey) valueKey = vComm;
@@ -2817,16 +2817,16 @@ export class WalletFile extends events.EventEmitter {
     }
 
     for (let output of tx.outputs) {
-      blsct.H(output.tokenId, output.tokenNftId);
+      blsct.H(output.tokenId, parseInt(output.tokenNftId.toString()));
 
       if (output.isCt()) {
-        if (!valueKey) valueKey = output.bp.V[0];
+        if (!valueKey) valueKey = blsct.mcl.inv(output.bp.V[0]);
         else valueKey = blsct.mcl.sub(valueKey, output.bp.V[0]);
       } else {
         let vFr = new blsct.mcl.Fr();
         vFr.setInt(output.amount ? output.amount : output.satoshis);
         let vComm = blsct.mcl.mul(
-          blsct.H(output.tokenId, output.tokenNftId),
+          blsct.H(output.tokenId, parseInt(output.tokenNftId.toString())),
           vFr
         );
         if (!valueKey) valueKey = blsct.mcl.inv(vComm);

@@ -1,6 +1,6 @@
 {
   "name": "navcoin-js",
-  "version": "1.1.150",
+  "version": "1.1.151",
   "description": "Navcoin Javascript Library",
   "main": "./dist/index.js",
   "scripts": {
@@ -14,7 +14,7 @@
   "author": "alex@nav.community",
   "license": "ISC",
   "dependencies": {
-    "@aguycalled/bitcore-lib": "^0.15.107",
+    "@aguycalled/bitcore-lib": "^0.15.108",
     "@aguycalled/bitcore-message": "^1.0.4",
     "@aguycalled/bitcore-mnemonic": "^1.5.4",
     "@aguycalled/bitcore-p2p": "^5.0.14",
