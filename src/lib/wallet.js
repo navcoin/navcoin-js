@@ -755,6 +755,8 @@ export class WalletFile extends events.EventEmitter {
     if (!this.electrumNodes[this.electrumNodeIndex])
       throw new Error("No nodes in the list, use AddNode");
 
+    this.emit("connecting");
+
     this.client = new electrum(
       this.electrumNodes[this.electrumNodeIndex].host,
       this.electrumNodes[this.electrumNodeIndex].port,
@@ -790,31 +792,6 @@ export class WalletFile extends events.EventEmitter {
           this.electrumNodes[this.electrumNodeIndex].port
       );
       this.connected = true;
-
-      this.p2pPool = new p2p({
-        dnsSeed: false, // prevent seeding with DNS discovered known peers upon connecting
-        listenAddr: false, // prevent new peers being added from addr messages
-        network: this.network,
-        maxSize: 1,
-        addrs: [
-          // initial peers to connect to
-          {
-            ip: {
-              v4: this.electrumNodes[this.electrumNodeIndex].host,
-            },
-          },
-        ],
-      });
-
-      console.log("connecting to p2p");
-      this.p2pPool.on("candidate", this.NewCandidate);
-      this.p2pPool.on("peerready", (_, server) => {
-        if (this.p2pPool) {
-          let sessionId = this.p2pPool.startSession();
-          console.log("started session", sessionId);
-        }
-      });
-      this.p2pPool.connect();
 
       if (resetFailed) this.failedConnections = 0;
 
@@ -867,6 +844,33 @@ export class WalletFile extends events.EventEmitter {
         );
         if (currentStatus && currentStatus.spender_txhash)
           await this.db.RemoveTxCandidate(candidates[i].input, this.network);
+      }
+
+      this.p2pPool = new p2p({
+        dnsSeed: false, // prevent seeding with DNS discovered known peers upon connecting
+        listenAddr: false, // prevent new peers being added from addr messages
+        network: this.network,
+        maxSize: 1,
+        addrs: [
+          // initial peers to connect to
+          {
+            ip: {
+              v4: this.electrumNodes[this.electrumNodeIndex].host,
+            },
+          },
+        ],
+      });
+
+      if ((await this.GetCandidates()).length < 100) {
+        console.log("connecting to p2p");
+        this.p2pPool.on("candidate", this.NewCandidate);
+        this.p2pPool.on("peerready", (_, server) => {
+          if (this.p2pPool) {
+            let sessionId = this.p2pPool.startSession();
+            console.log("started session", sessionId);
+          }
+        });
+        this.p2pPool.connect();
       }
 
       this.client.subscribe.on("blockchain.dao.subscribe", async (event) => {
