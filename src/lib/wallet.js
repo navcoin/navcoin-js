@@ -1663,7 +1663,7 @@ export class WalletFile extends events.EventEmitter {
         return undefined;
       }
     } else {
-      return ret;
+      return [{ ...ret, id: ret.id.split("-")[1] }];
     }
   }
 
