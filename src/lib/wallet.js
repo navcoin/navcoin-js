@@ -1550,7 +1550,7 @@ export class WalletFile extends events.EventEmitter {
         let nftInfo = await this.GetNftInfo(tokenId, tokenNftId);
 
         ret.nfts[tokenId].confirmed[tokenNftId] = nftInfo
-          ? nftInfo.metadata
+          ? nftInfo[0].metadata
           : "";
       }
     }
@@ -1584,7 +1584,7 @@ export class WalletFile extends events.EventEmitter {
 
         if (nftInfo)
           ret.nfts[tokenId].pending[tokenNftId] = nftInfo
-            ? nftInfo.metadata
+            ? nftInfo[0].metadata
             : "";
       }
     }
