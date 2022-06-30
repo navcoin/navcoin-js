@@ -80,9 +80,12 @@ export class WalletFile extends events.EventEmitter {
     });
 
     this.queue.on("end", async () => {
-      if ((await self.GetPoolSize(AddressTypes.XNAV)) < 10) {
+      if ((await self.GetPoolSize(AddressTypes.XNAV)) < this.GetMinPoolSize()) {
         this.Log("Need to fill the xNAV key pool");
-        await self.xNavFillKeyPool(self.spendingPassword, 20);
+        await self.xNavFillKeyPool(
+          self.spendingPassword,
+          this.GetMinPoolSize() * 2
+        );
       } else {
         self.spendingPassword = "";
         self.emit("sync_finished");
@@ -143,6 +146,10 @@ export class WalletFile extends events.EventEmitter {
     return await this.db.GetPoolSize(type, change);
   }
 
+  GetMinPoolSize() {
+    return this.minPoolSize || 10;
+  }
+
   Log(str) {
     if (!this.log) return;
     console.log(` [navcoin-js] ${str}`);
@@ -157,6 +164,7 @@ export class WalletFile extends events.EventEmitter {
 
     this.daoConsultations = {};
     this.daoProposals = {};
+    this.minPoolSize = options.minPoolSize;
 
     if (!this.db.open) throw new Error("DB did not load.");
 
@@ -269,8 +277,8 @@ export class WalletFile extends events.EventEmitter {
     }
 
     if (await this.GetMasterKey("nav", this.spendingPassword)) {
-      await this.xNavFillKeyPool(this.spendingPassword);
-      await this.NavFillKeyPool(this.spendingPassword);
+      await this.xNavFillKeyPool(this.spendingPassword, this.GetMinPoolSize());
+      await this.NavFillKeyPool(this.spendingPassword, this.GetMinPoolSize());
     }
 
     if (this.newWallet || (await this.db.GetStakingAddresses())?.length == 0) {
@@ -1725,9 +1733,14 @@ export class WalletFile extends events.EventEmitter {
         await this.db.UseNavAddress(
           out.script.toAddress(this.network).toString()
         );
-        if ((await this.GetPoolSize(AddressTypes.NAV)) < 10) {
+        if (
+          (await this.GetPoolSize(AddressTypes.NAV)) < this.GetMinPoolSize()
+        ) {
           this.Log("Filling NAV key pool");
-          await this.NavFillKeyPool(this.spendingPassword, 20);
+          await this.NavFillKeyPool(
+            this.spendingPassword,
+            this.GetMinPoolSize() * 2
+          );
         }
       } else {
         await this.db.UseXNavAddress(hashId);
