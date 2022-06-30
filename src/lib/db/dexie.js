@@ -966,6 +966,16 @@ export default class Db extends events.EventEmitter {
       });
   }
 
+  async GetAllTxKeys() {
+    if (!this.dbTx) return;
+
+    return await this.dbTx.txKeys
+      .toArray()
+      .catch("DatabaseClosedError", (e) => {
+        console.error("DatabaseClosed error: " + e.message);
+      });
+  }
+
   async WriteConsensusParameters(parameters) {
     if (!this.db) return;
 
