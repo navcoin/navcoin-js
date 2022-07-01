@@ -758,6 +758,16 @@ Example:
 wallet.on('connected', (server) => console.log(`connected to ${server}. waiting for sync`));
 ````
 
+### disconnected
+
+Emitted when a connection drops.
+
+Example:
+
+````javascript
+wallet.on('disconnected', () => console.log(`connection ended`));
+````
+
 ### no_servers_available
 
 Emitted when none of the servers is available
