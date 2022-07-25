@@ -1591,7 +1591,7 @@ export class WalletFile extends events.EventEmitter {
         let nftInfo = await this.GetNftInfo(tokenId, tokenNftId);
 
         if (nftInfo)
-          ret.nfts[tokenId].pending[tokenNftId] = nftInfo
+          ret.nfts[tokenId].pending[tokenNftId] = nftInfo[0]
             ? nftInfo[0].metadata
             : "";
       }
