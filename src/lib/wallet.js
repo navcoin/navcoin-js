@@ -486,15 +486,19 @@ export class WalletFile extends events.EventEmitter {
     );
 
     await this.db.UpdateCounter("xNav" + acct, index + 1);
-    await this.db.AddKey(
-      hashId,
-      [acct, index],
-      AddressTypes.XNAV,
-      blsct.KeysToAddress(viewKey, spendKey).toString(),
-      false,
-      false,
-      acct + "/" + parseInt(index)
-    );
+    try {
+      await this.db.AddKey(
+        hashId,
+        [acct, index],
+        AddressTypes.XNAV,
+        blsct.KeysToAddress(viewKey, spendKey).toString(),
+        false,
+        false,
+        acct + "/" + parseInt(index)
+      );
+    } catch (e) {
+      console.log(e.message);
+    }
   }
 
   async NavCreateAddress(sk, change = 0) {
@@ -539,16 +543,20 @@ export class WalletFile extends events.EventEmitter {
     let addrStr = bitcore.Address(pk, this.network).toString();
 
     await this.db.UpdateCounter(labelCounter, index + 1);
-    await this.db.AddKey(
-      hashId,
-      privK.toString(),
-      AddressTypes.NAV,
-      addrStr,
-      false,
-      change,
-      path,
-      sk
-    );
+    try {
+      await this.db.AddKey(
+        hashId,
+        privK.toString(),
+        AddressTypes.NAV,
+        addrStr,
+        false,
+        change,
+        path,
+        sk
+      );
+    } catch (e) {
+      console.log(e.message);
+    }
 
     if (this.poolFilled) {
       await this.SyncScriptHash(this.AddressToScriptHash(addrStr));
@@ -564,16 +572,20 @@ export class WalletFile extends events.EventEmitter {
     let pk = privK.publicKey;
     let hashId = new Buffer(ripemd160(sha256(pk.toBuffer()))).toString("hex");
 
-    await this.db.AddKey(
-      hashId,
-      privK.toString(),
-      AddressTypes.NAV,
-      bitcore.Address(pk, this.network).toString(),
-      false,
-      false,
-      path,
-      key
-    );
+    try {
+      await this.db.AddKey(
+        hashId,
+        privK.toString(),
+        AddressTypes.NAV,
+        bitcore.Address(pk, this.network).toString(),
+        false,
+        false,
+        path,
+        key
+      );
+    } catch (e) {
+      console.log(e.message);
+    }
 
     if (this.connected) {
       await this.Sync();
@@ -588,17 +600,20 @@ export class WalletFile extends events.EventEmitter {
     let path = "watch";
     let pk = address;
     let hashId = pk.toObject().hash;
-
-    await this.db.AddKey(
-      hashId,
-      address.toString(),
-      AddressTypes.NAV,
-      bitcore.Address(pk, this.network).toString(),
-      false,
-      false,
-      path,
-      key
-    );
+    try {
+      await this.db.AddKey(
+        hashId,
+        address.toString(),
+        AddressTypes.NAV,
+        bitcore.Address(pk, this.network).toString(),
+        false,
+        false,
+        path,
+        key
+      );
+    } catch (e) {
+      console.log(e.message);
+    }
 
     if (this.connected) {
       await this.Sync();
@@ -2126,16 +2141,20 @@ export class WalletFile extends events.EventEmitter {
             .toString("hex");
 
           if (keyId == id) {
-            await this.db.AddKey(
-              keyId.toString("hex"),
-              key.serialize().toString("hex"),
-              AddressTypes.TOKEN,
-              values[2],
-              false,
-              false,
-              values[4],
-              this.spendingPassword
-            );
+            try {
+              await this.db.AddKey(
+                keyId.toString("hex"),
+                key.serialize().toString("hex"),
+                AddressTypes.TOKEN,
+                values[2],
+                false,
+                false,
+                values[4],
+                this.spendingPassword
+              );
+            } catch (e) {
+              console.log(e.message);
+            }
           }
         } catch (e) {
           console.log(e);
@@ -3025,16 +3044,20 @@ export class WalletFile extends events.EventEmitter {
       .reverse()
       .toString("hex");
 
-    await this.db.AddKey(
-      ret.token_id.toString("hex"),
-      key.serialize().toString("hex"),
-      AddressTypes.TOKEN,
-      name,
-      false,
-      false,
-      token_code,
-      spendingPassword
-    );
+    try {
+      await this.db.AddKey(
+        ret.token_id.toString("hex"),
+        key.serialize().toString("hex"),
+        AddressTypes.TOKEN,
+        name,
+        false,
+        false,
+        token_code,
+        spendingPassword
+      );
+    } catch (e) {
+      console.log(e.message);
+    }
     return ret;
   }
 
@@ -3130,16 +3153,22 @@ export class WalletFile extends events.EventEmitter {
       .reverse()
       .toString("hex");
 
-    await this.db.AddKey(
-      ret.token_id.toString("hex"),
-      key.serialize().toString("hex"),
-      AddressTypes.TOKEN,
-      name,
-      false,
-      false,
-      scheme,
-      spendingPassword
-    );
+    try {
+      await this.db
+        .AddKey(
+          ret.token_id.toString("hex"),
+          key.serialize().toString("hex"),
+          AddressTypes.TOKEN,
+          name,
+          false,
+          false,
+          scheme,
+          spendingPassword
+        )
+        .catch();
+    } catch (e) {
+      console.log(e.message);
+    }
 
     return ret;
   }
