@@ -103,7 +103,7 @@ export default class Db extends events.EventEmitter {
 
       this.emit("db_open");
     } catch (e) {
-      console.log(e);
+      console.log("Open error", e);
       this.open = false;
       this.emit("db_load_error", e);
     }
@@ -157,8 +157,8 @@ export default class Db extends events.EventEmitter {
           : { type: type, used: 0 }
       )
       .count()
-      .catch("DatabaseClosedError", (e) => {
-        console.error("DatabaseClosed error: " + e.message);
+      .catch((e) => {
+        console.error("GetPoolSize error: " + e.message);
       });
   }
 
@@ -169,8 +169,8 @@ export default class Db extends events.EventEmitter {
       .get({
         key: "masterKey_" + key,
       })
-      .catch("DatabaseClosedError", (e) => {
-        console.error("DatabaseClosed error: " + e.message);
+      .catch((e) => {
+        console.error("GetMasterKey error: " + e.message);
       });
 
     if (!dbFind) return undefined;
@@ -206,8 +206,8 @@ export default class Db extends events.EventEmitter {
           key: "masterKey_" + type,
           value: value,
         })
-        .catch("DatabaseClosedError", (e) => {
-          console.error("DatabaseClosed error: " + e.message);
+        .catch((e) => {
+          console.error("AddMasterKey error: " + e.message);
         });
       return true;
     } catch (e) {
@@ -220,19 +220,17 @@ export default class Db extends events.EventEmitter {
 
     await this.db.settings
       .put({ key: "counter_" + index, value: value })
-      .catch("DatabaseClosedError", (e) => {
-        console.error("DatabaseClosed error: " + e.message);
+      .catch((e) => {
+        console.error("UpdateCounter error: " + e.message);
       });
   }
 
   async GetCounter(index) {
     if (!this.db) return;
 
-    let ret = await this.db.settings
-      .get("counter_" + index)
-      .catch("DatabaseClosedError", (e) => {
-        console.error("DatabaseClosed error: " + e.message);
-      });
+    let ret = await this.db.settings.get("counter_" + index).catch((e) => {
+      console.error("GetCounter error: " + e.message);
+    });
 
     if (ret) return ret.value;
 
@@ -268,7 +266,7 @@ export default class Db extends events.EventEmitter {
         path: path,
       });
     } catch (e) {
-      console.error("DatabaseClosed error: " + e.message);
+      //console.error("AddKey error: " + e.message);
       return false;
     }
     this.keys[hashId] = true;
@@ -281,11 +279,9 @@ export default class Db extends events.EventEmitter {
   async GetKey(key, password) {
     if (!this.db) return;
 
-    let dbFind = await this.db.keys
-      .get({ hash: key })
-      .catch("DatabaseClosedError", (e) => {
-        console.error("DatabaseClosed error: " + e.message);
-      });
+    let dbFind = await this.db.keys.get({ hash: key }).catch((e) => {
+      console.error("GetKey error: " + e.message);
+    });
 
     if (!dbFind) return undefined;
     password = this.HashPassword(password);
@@ -317,19 +313,17 @@ export default class Db extends events.EventEmitter {
         key: key,
         value: value,
       })
-      .catch("DatabaseClosedError", (e) => {
-        console.error("DatabaseClosed error: " + e.message);
+      .catch((e) => {
+        console.error("SetValue error: " + e.message);
       });
   }
 
   async GetValue(key) {
     if (!this.db) return;
 
-    let ret = await this.db.settings
-      .get(key)
-      .catch("DatabaseClosedError", (e) => {
-        console.error("DatabaseClosed error: " + e.message);
-      });
+    let ret = await this.db.settings.get(key).catch((e) => {
+      console.error("GetValue error: " + e.message);
+    });
 
     if (ret) return ret.value;
 
@@ -342,34 +336,32 @@ export default class Db extends events.EventEmitter {
     return await this.db.keys
       .where({ type: AddressTypes.NAV })
       .toArray()
-      .catch("DatabaseClosedError", (e) => {
-        console.error("DatabaseClosed error: " + e.message);
+      .catch((e) => {
+        console.error("GetNavAddresses error: " + e.message);
       });
   }
 
   async GetStakingAddresses() {
     if (!this.db) return [];
 
-    return await this.db.stakingAddresses
-      .toArray()
-      .catch("DatabaseClosedError", (e) => {
-        console.error("DatabaseClosed error: " + e.message);
-      });
+    return await this.db.stakingAddresses.toArray().catch((e) => {
+      console.error("GetStakingAddresses error: " + e.message);
+    });
   }
 
   async AddStakingAddress(address, address2, hash, pk2) {
     if (!this.db) return;
 
     await this.db.stakingAddresses
-      .add({
+      .put({
         id: address + "_" + address2,
         address: address,
         addressVoting: address2,
         hash: hash,
         hashVoting: pk2,
       })
-      .catch("DatabaseClosedError", (e) => {
-        console.error("DatabaseClosed error: " + e.message);
+      .catch((e) => {
+        console.error("AddStakingAddress error: " + e.message);
       });
   }
 
@@ -377,20 +369,18 @@ export default class Db extends events.EventEmitter {
     if (!this.db) return;
 
     return await this.db.stakingAddresses
-      .get({ address: address, addressVoting: address2 })
-      .catch("DatabaseClosedError", (e) => {
-        console.error("DatabaseClosed error: " + e.message);
+      .get(address + "_" + address2)
+      .catch((e) => {
+        console.error("GetStakingAddress error: " + e.message);
       });
   }
 
   async GetStatusForScriptHash(s) {
     if (!this.db) return;
 
-    let ret = await this.db.statuses
-      .get(s)
-      .catch("DatabaseClosedError", (e) => {
-        console.error("DatabaseClosed error: " + e.message);
-      });
+    let ret = await this.db.statuses.get(s).catch((e) => {
+      console.error("GetStatusForScriptHash error: " + e.message);
+    });
 
     return ret ? ret.status : undefined;
   }
@@ -398,11 +388,9 @@ export default class Db extends events.EventEmitter {
   async SetStatusForScriptHash(s, st) {
     if (!this.db) return;
 
-    await this.db.statuses
-      .put({ scriptHash: s, status: st })
-      .catch("DatabaseClosedError", (e) => {
-        console.error("DatabaseClosed error: " + e.message);
-      });
+    await this.db.statuses.put({ scriptHash: s, status: st }).catch((e) => {
+      console.error("SetStatusForScriptHash error: " + e.message);
+    });
   }
 
   async BulkRawInsert(documents) {
@@ -436,8 +424,8 @@ export default class Db extends events.EventEmitter {
 
     for (var i in types) {
       let type = types[i];
-      await this.db[type].clear().catch("DatabaseClosedError", (e) => {
-        console.error("DatabaseClosed error: " + e.message);
+      await this.db[type].clear().catch((e) => {
+        console.error("ZapWalletTxes error: " + e.message);
       });
     }
   }
@@ -448,8 +436,8 @@ export default class Db extends events.EventEmitter {
     let ret = await this.db.keys
       .where({ type: AddressTypes.XNAV })
       .toArray()
-      .catch("DatabaseClosedError", (e) => {
-        console.error("DatabaseClosed error: " + e.message);
+      .catch((e) => {
+        console.error("GetXNavReceivingAddresses error: " + e.message);
       });
 
     ret.sort((a, b) => {
@@ -468,8 +456,8 @@ export default class Db extends events.EventEmitter {
     return await this.db.keys
       .where({ type: AddressTypes.NAV })
       .toArray()
-      .catch("DatabaseClosedError", (e) => {
-        console.error("DatabaseClosed error: " + e.message);
+      .catch((e) => {
+        console.error("GetNavReceivingAddresses error: " + e.message);
       });
   }
 
@@ -479,8 +467,8 @@ export default class Db extends events.EventEmitter {
     let ret = await this.db.keys
       .where({ address: address })
       .toArray()
-      .catch("DatabaseClosedError", (e) => {
-        console.error("DatabaseClosed error: " + e.message);
+      .catch((e) => {
+        console.error("GetNavAddress error: " + e.message);
       });
 
     return ret[0];
@@ -492,8 +480,8 @@ export default class Db extends events.EventEmitter {
     return await this.db.scriptHistories
       .where({ fetched: downloaded })
       .toArray()
-      .catch("DatabaseClosedError", (e) => {
-        console.error("DatabaseClosed error: " + e.message);
+      .catch((e) => {
+        console.error("GetPendingTxs error: " + e.message);
       });
   }
 
@@ -507,8 +495,8 @@ export default class Db extends events.EventEmitter {
       .belowOrEqual(lowerLimit)
       .filter((e) => e.scriptHash == scriptHash)
       .delete()
-      .catch("DatabaseClosedError", (e) => {
-        console.error("DatabaseClosed error: " + e.message);
+      .catch((e) => {
+        console.error("CleanScriptHashHistory error: " + e.message);
       });
   }
 
@@ -523,19 +511,17 @@ export default class Db extends events.EventEmitter {
         height: height,
         fetched: fetched ? 1 : 0,
       })
-      .catch("DatabaseClosedError", (e) => {
-        console.error("DatabaseClosed error: " + e.message);
+      .catch((e) => {
+        console.error("AddScriptHashHistory error: " + e.message);
       });
   }
 
   async AddLabel(address, name) {
     if (!this.db) return;
 
-    await this.db.labels
-      .put({ address: address, name: name })
-      .catch("DatabaseClosedError", (e) => {
-        console.error("DatabaseClosed error: " + e.message);
-      });
+    await this.db.labels.put({ address: address, name: name }).catch((e) => {
+      console.error("AddLabel error: " + e.message);
+    });
   }
 
   async AddName(name, height, data = {}) {
@@ -543,8 +529,8 @@ export default class Db extends events.EventEmitter {
 
     await this.db.names
       .put({ name: name, height: height, data: data })
-      .catch("DatabaseClosedError", (e) => {
-        console.error("DatabaseClosed error: " + e.message);
+      .catch((e) => {
+        console.error("AddName error: " + e.message);
       });
   }
 
@@ -552,8 +538,8 @@ export default class Db extends events.EventEmitter {
     if (!this.db) return;
 
     try {
-      return await this.db.names.get(name).catch("DatabaseClosedError", (e) => {
-        console.error("DatabaseClosed error: " + e.message);
+      return await this.db.names.get(name).catch((e) => {
+        console.error("GetName error: " + e.message);
       });
     } catch (e) {
       return undefined;
@@ -572,8 +558,8 @@ export default class Db extends events.EventEmitter {
         version: version,
         key: key,
       })
-      .catch("DatabaseClosedError", (e) => {
-        console.error("DatabaseClosed error: " + e.message);
+      .catch((e) => {
+        console.error("AddTokenInfo error: " + e.message);
       });
   }
 
@@ -581,11 +567,9 @@ export default class Db extends events.EventEmitter {
     if (!this.db) return;
 
     try {
-      return await this.db.tokens
-        .get({ id })
-        .catch("DatabaseClosedError", (e) => {
-          console.error("DatabaseClosed error: " + e.message);
-        });
+      return await this.db.tokens.get({ id }).catch((e) => {
+        console.error("GetTokenInfo error: " + e.message);
+      });
     } catch (e) {
       return undefined;
     }
@@ -596,8 +580,8 @@ export default class Db extends events.EventEmitter {
 
     await this.db.nfts
       .put({ id: id + "-" + nftid, metadata: metadata })
-      .catch("DatabaseClosedError", (e) => {
-        console.error("DatabaseClosed error: " + e.message);
+      .catch((e) => {
+        console.error("AddNftInfo error: " + e.message);
       });
   }
 
@@ -605,11 +589,9 @@ export default class Db extends events.EventEmitter {
     if (!this.db) return;
 
     try {
-      return await this.db.nfts
-        .get({ id: id + "-" + nftid })
-        .catch("DatabaseClosedError", (e) => {
-          console.error("DatabaseClosed error: " + e.message);
-        });
+      return await this.db.nfts.get({ id: id + "-" + nftid }).catch((e) => {
+        console.error("GetNftInfo error: " + e.message);
+      });
     } catch (e) {
       return undefined;
     }
@@ -619,8 +601,8 @@ export default class Db extends events.EventEmitter {
     if (!this.db) return;
 
     try {
-      return await this.db.names.toArray().catch("DatabaseClosedError", (e) => {
-        console.error("DatabaseClosed error: " + e.message);
+      return await this.db.names.toArray().catch((e) => {
+        console.error("GetMyNames error: " + e.message);
       });
     } catch (e) {
       return [];
@@ -631,11 +613,9 @@ export default class Db extends events.EventEmitter {
     if (!this.db) return;
 
     try {
-      return await this.db.tokens
-        .toArray()
-        .catch("DatabaseClosedError", (e) => {
-          console.error("DatabaseClosed error: " + e.message);
-        });
+      return await this.db.tokens.toArray().catch((e) => {
+        console.error("GetMyTokens error: " + e.message);
+      });
     } catch (e) {
       return [];
     }
@@ -644,11 +624,9 @@ export default class Db extends events.EventEmitter {
   async GetLabel(address) {
     if (!this.db) return;
 
-    let label = await this.db.labels
-      .get(address)
-      .catch("DatabaseClosedError", (e) => {
-        console.error("DatabaseClosed error: " + e.message);
-      });
+    let label = await this.db.labels.get(address).catch((e) => {
+      console.error("GetLabel error: " + e.message);
+    });
 
     return label ? label : address;
   }
@@ -660,8 +638,8 @@ export default class Db extends events.EventEmitter {
       return await this.db.scriptHistories
         .where({ scriptHash: scriptHash })
         .toArray()
-        .catch("DatabaseClosedError", (e) => {
-          console.error("DatabaseClosed error: " + e.message);
+        .catch((e) => {
+          console.error("GetScriptHashHistory error: " + e.message);
         });
     } catch (e) {
       return [];
@@ -675,8 +653,8 @@ export default class Db extends events.EventEmitter {
       await this.db.scriptHistories
         .where({ tx_hash: hash })
         .modify({ fetched: 1 })
-        .catch("DatabaseClosedError", (e) => {
-          console.error("DatabaseClosed error: " + e.message);
+        .catch((e) => {
+          console.error("MarkAsFetched error: " + e.message);
         });
     } catch (e) {
       return [];
@@ -686,11 +664,9 @@ export default class Db extends events.EventEmitter {
   async GetWalletHistory() {
     if (!this.db) return [];
 
-    let history = await this.db.walletTxs
-      .toArray()
-      .catch("DatabaseClosedError", (e) => {
-        console.error("DatabaseClosed error: " + e.message);
-      });
+    let history = await this.db.walletTxs.toArray().catch((e) => {
+      console.error("GetWalletHistory error: " + e.message);
+    });
 
     let confirmed = history.filter((e) => e.height > 0);
     let unconfirmed = history.filter((e) => !e.confirmed || e.height <= 0);
@@ -747,8 +723,8 @@ export default class Db extends events.EventEmitter {
         token_id: tokenId,
         nft_id: tokenNftId,
       })
-      .catch("DatabaseClosedError", (e) => {
-        console.error("DatabaseClosed error: " + e.message);
+      .catch((e) => {
+        console.error("AddWalletTx error: " + e.message);
       });
   }
 
@@ -759,8 +735,8 @@ export default class Db extends events.EventEmitter {
 
     if (forBalance) ret.or({ spentIn: "0:0" });
 
-    return ret.toArray().catch("DatabaseClosedError", (e) => {
-      console.error("DatabaseClosed error: " + e.message);
+    return ret.toArray().catch((e) => {
+      console.error("GetUtxos error: " + e.message);
     });
   }
 
@@ -770,24 +746,24 @@ export default class Db extends events.EventEmitter {
     return await this.dbTx.candidates
       .where({ network: network })
       .toArray()
-      .catch("DatabaseClosedError", (e) => {
-        console.error("DatabaseClosed error: " + e.message);
+      .catch((e) => {
+        console.error("GetCandidates error: " + e.message);
       });
   }
 
   async GetTxs() {
     if (!this.dbTx) return;
 
-    return await this.dbTx.txs.toArray().catch("DatabaseClosedError", (e) => {
-      console.error("DatabaseClosed error: " + e.message);
+    return await this.dbTx.txs.toArray().catch((e) => {
+      console.error("GetTxs error: " + e.message);
     });
   }
 
   async GetTx(hash) {
     if (!this.dbTx) return;
 
-    return await this.dbTx.txs.get(hash).catch("DatabaseClosedError", (e) => {
-      console.error("DatabaseClosed error: " + e.message);
+    return await this.dbTx.txs.get(hash).catch((e) => {
+      console.error("GetTx error: " + e.message);
     });
   }
 
@@ -805,32 +781,26 @@ export default class Db extends events.EventEmitter {
   ) {
     if (!this.db) return;
 
-    await this.db.outPoints
-      .add({
-        id: outPoint,
-        out: out,
-        spentIn: spentIn,
-        amount: amount,
-        label: label,
-        type: type,
-        spendingPk: spendingPk,
-        stakingPk: stakingPk,
-        votingPk: votingPk,
-        hashId: hashId,
-      })
-      .catch("DatabaseClosedError", (e) => {
-        console.error("DatabaseClosed error: " + e.message);
-      });
+    await this.db.outPoints.add({
+      id: outPoint,
+      out: out,
+      spentIn: spentIn,
+      amount: amount,
+      label: label,
+      type: type,
+      spendingPk: spendingPk,
+      stakingPk: stakingPk,
+      votingPk: votingPk,
+      hashId: hashId,
+    });
   }
 
   async GetUtxo(outPoint) {
     if (!this.db) return {};
 
-    return await this.db.outPoints
-      .get(outPoint)
-      .catch("DatabaseClosedError", (e) => {
-        console.error("DatabaseClosed error: " + e.message);
-      });
+    return await this.db.outPoints.get(outPoint).catch((e) => {
+      console.error("GetUtxo error: " + e.message);
+    });
   }
 
   async SpendUtxo(outPoint, spentIn) {
@@ -840,8 +810,8 @@ export default class Db extends events.EventEmitter {
       await this.db.outPoints
         .where({ id: outPoint })
         .modify({ spentIn: spentIn })
-        .catch("DatabaseClosedError", (e) => {
-          console.error("DatabaseClosed error: " + e.message);
+        .catch((e) => {
+          console.error("SpendUtxo error: " + e.message);
         });
     } catch (e) {
       console.log("SpendUtxo", e);
@@ -855,8 +825,8 @@ export default class Db extends events.EventEmitter {
       await this.dbTx.txs
         .where({ hash: hash })
         .modify({ height: height, pos: pos })
-        .catch("DatabaseClosedError", (e) => {
-          console.error("DatabaseClosed error: " + e.message);
+        .catch((e) => {
+          console.error("SetTxHeight error: " + e.message);
         });
     } catch (e) {
       console.log("SetTxHeight", e);
@@ -870,8 +840,8 @@ export default class Db extends events.EventEmitter {
       await this.db.keys
         .where({ address: address })
         .modify({ used: 1 })
-        .catch("DatabaseClosedError", (e) => {
-          console.error("DatabaseClosed error: " + e.message);
+        .catch((e) => {
+          console.error("UseNavAddress error: " + e.message);
         });
     } catch (e) {
       console.log("usenav", e);
@@ -885,8 +855,8 @@ export default class Db extends events.EventEmitter {
       await this.db.keys
         .where({ hash: hashId })
         .modify({ used: 1 })
-        .catch("DatabaseClosedError", (e) => {
-          console.error("DatabaseClosed error: " + e.message);
+        .catch((e) => {
+          console.error("UseXNavAddress error: " + e.message);
         });
     } catch (e) {
       console.log("usexnav", e);
@@ -899,8 +869,8 @@ export default class Db extends events.EventEmitter {
     tx.hash = tx.txid;
     delete tx.tx;
     try {
-      await this.dbTx.txs.add(tx).catch("DatabaseClosedError", (e) => {
-        console.error("DatabaseClosed error: " + e.message);
+      await this.dbTx.txs.add(tx).catch((e) => {
+        console.error("AddTx error: " + e.message);
       });
       return true;
     } catch (e) {
@@ -913,8 +883,8 @@ export default class Db extends events.EventEmitter {
 
     tx.hash = tx.txidkeys;
     try {
-      await this.dbTx.txKeys.add(tx).catch("DatabaseClosedError", (e) => {
-        console.error("DatabaseClosed error: " + e.message);
+      await this.dbTx.txKeys.put(tx).catch((e) => {
+        console.error("AddTxKeys error: " + e.message);
       });
       return true;
     } catch (e) {
@@ -936,8 +906,8 @@ export default class Db extends events.EventEmitter {
             ":" +
             candidate.tx.inputs[0].outputIndex,
         })
-        .catch("DatabaseClosedError", (e) => {
-          console.error("DatabaseClosed error: " + e.message);
+        .catch((e) => {
+          console.error("AddTxCandidate error: " + e.message);
         });
       return true;
     } catch (e) {
@@ -951,40 +921,34 @@ export default class Db extends events.EventEmitter {
     await this.dbTx.candidates
       .where({ input: input })
       .delete()
-      .catch("DatabaseClosedError", (e) => {
-        console.error("DatabaseClosed error: " + e.message);
+      .catch((e) => {
+        console.error("RemoveTxCandidate error: " + e.message);
       });
   }
 
   async GetTxKeys(hash) {
     if (!this.dbTx) return;
 
-    return await this.dbTx.txKeys
-      .get(hash)
-      .catch("DatabaseClosedError", (e) => {
-        console.error("DatabaseClosed error: " + e.message);
-      });
+    return await this.dbTx.txKeys.get(hash).catch((e) => {
+      console.error("GetTxKeys error: " + e.message);
+    });
   }
 
   async GetAllTxKeys() {
     if (!this.dbTx) return;
 
-    return await this.dbTx.txKeys
-      .toArray()
-      .catch("DatabaseClosedError", (e) => {
-        console.error("DatabaseClosed error: " + e.message);
-      });
+    return await this.dbTx.txKeys.toArray().catch((e) => {
+      console.error("GetAllTxKeys error: " + e.message);
+    });
   }
 
   async WriteConsensusParameters(parameters) {
     if (!this.db) return;
 
     for (let id in parameters) {
-      await this.db.consensus
-        .put(parameters[id])
-        .catch("DatabaseClosedError", (e) => {
-          console.error("DatabaseClosed error: " + e.message);
-        });
+      await this.db.consensus.put(parameters[id]).catch((e) => {
+        console.error("WriteConsensusParameters error: " + e.message);
+      });
     }
 
     return true;
@@ -993,11 +957,9 @@ export default class Db extends events.EventEmitter {
   async GetConsensusParameters() {
     if (!this.db) return;
 
-    return await this.db.consensus
-      .toArray()
-      .catch("DatabaseClosedError", (e) => {
-        console.error("DatabaseClosed error: " + e.message);
-      });
+    return await this.db.consensus.toArray().catch((e) => {
+      console.error("GetConsensusParameters error: " + e.message);
+    });
   }
 }
 
