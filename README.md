@@ -590,6 +590,30 @@ catch(e)
 }
 ````
 
+### CreateTokenOrder(tokenInId, tokenInAmount, payTo, tokenOutId, tokenOutAmount, spendingPassword)
+
+Creates an order to receive `tokenInAmount` amount of token `tokenInId` in the address `payTo` in exchange of `tokenOutAmount` amount of token `tokenOutId`.
+
+Returns an object with the partial transaction, the assets needed to complete the transaction and the assets received.
+
+Example:
+
+````javascript
+try {
+    // Create order to sell 1000 of the token "a022.." in exchange of 10 xNAV
+    let order = await wallet.CreateTokenOrder(undefined, 10*1e8, "xNUBDkjEKRRxXfN3nAbeBZLWbePjswoKi9PHboXfJzbqmg6heMbxJhhovMmebqN96AaXyFYsZFfGXaGVptFnPzyQjGE8bbo83kEZG5jUXbKoaJPC4ztTg1zw3dUyavXNVVUoeuDB3Yu", "a022b264c5d9a0f15f548b75c83f69944211a9abba7f27fc91fada1eda079762", 1000*1e8)
+} catch(e) {
+    console.log(`error creating order: ${e}`);
+}
+
+try {
+    // Create order to buy 1000 of the token "a022.." in exchange of 10 xNAV
+    let order = await wallet.CreateTokenOrder("a022b264c5d9a0f15f548b75c83f69944211a9abba7f27fc91fada1eda079762", 1000*1e8, "xNUBDkjEKRRxXfN3nAbeBZLWbePjswoKi9PHboXfJzbqmg6heMbxJhhovMmebqN96AaXyFYsZFfGXaGVptFnPzyQjGE8bbo83kEZG5jUXbKoaJPC4ztTg1zw3dUyavXNVVUoeuDB3Yu", undefined, 10*1e8)
+} catch(e) {
+    console.log(`error creating order: ${e}`);
+}
+````
+
 ### CreateMintNftOrder(tokenId, tokenNftId, payTo, price, metadata, spendingPassword)
 
 Creates an order to mint NFT `tokenId`:`tokenNftId` with metadata `metadata` in exchange of a payment of `price` xNAV sent to `payTo`.
