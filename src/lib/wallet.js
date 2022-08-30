@@ -3516,6 +3516,80 @@ export class WalletFile extends events.EventEmitter {
     };
   }
 
+  async CreateTokenOrder(
+    tokenInId,
+    tokenInAmount,
+    payTo,
+    tokenOutId,
+    tokenOutAmount,
+    spendingPassword
+  ) {
+    let tokenIn = { name: "xNAV" };
+    let tokenOut = { name: "xNAV" };
+
+    tokenInId = tokenInId
+      ? tokenInId
+      : new Buffer(new Uint8Array(32)).toString("hex");
+    tokenOutId = tokenOutId
+      ? tokenOutId
+      : new Buffer(new Uint8Array(32)).toString("hex");
+
+    if (tokenInId == tokenOutId)
+      throw new Error("tokenInId and tokenOutId must be different");
+
+    if (tokenInId != new Buffer(new Uint8Array(32)).toString("hex")) {
+      tokenIn = await this.GetTokenInfo(tokenInId);
+
+      if (!tokenIn || (tokenIn && tokenIn.name == undefined))
+        throw new Error("Unknown tokenInId");
+    }
+
+    if (tokenOutId != new Buffer(new Uint8Array(32)).toString("hex")) {
+      tokenOut = await this.GetTokenInfo(tokenOutId);
+
+      if (!tokenOut || (tokenOut && tokenOut.name == undefined))
+        throw new Error("Unknown tokenInId");
+    }
+
+    return {
+      tx: (
+        await this.tokenCreateTransaction(
+          [
+            {
+              dest: payTo,
+              amount: tokenOutAmount,
+              memo: "",
+              tokenId: tokenOutId,
+              tokenNftId: -1,
+              ignore: true,
+            },
+            {
+              dest: payTo,
+              amount: tokenInAmount,
+              memo: `${tokenIn.name.substr(0, 10)}/${tokenOut.name.substr(
+                0,
+                10
+              )} trade`,
+              tokenId: tokenInId,
+              tokenNftId: -1,
+            },
+          ],
+          tokenOutAmount,
+          "",
+          spendingPassword,
+          tokenOutId,
+          -1,
+          undefined,
+          undefined,
+          false,
+          true
+        )
+      ).tx,
+      pay: [{ amount: tokenInAmount, tokenId: tokenInId }],
+      receive: [{ amount: tokenOutAmount, tokenId: tokenOutId }],
+    };
+  }
+
   async UpdateName(name, subdomain, key, value, spendingPassword) {
     let consensus = await this.GetConsensusParameters();
 
