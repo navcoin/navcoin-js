@@ -165,6 +165,7 @@ export class WalletFile extends events.EventEmitter {
     this.daoConsultations = {};
     this.daoProposals = {};
     this.minPoolSize = options.minPoolSize;
+    this.useP2p = options.useP2p || true;
 
     if (!this.db.open) throw new Error("DB did not load.");
 
@@ -869,22 +870,24 @@ export class WalletFile extends events.EventEmitter {
           await this.db.RemoveTxCandidate(candidates[i].input, this.network);
       }
 
-      this.p2pPool = new p2p({
-        dnsSeed: false, // prevent seeding with DNS discovered known peers upon connecting
-        listenAddr: false, // prevent new peers being added from addr messages
-        network: this.network,
-        maxSize: 1,
-        addrs: [
-          // initial peers to connect to
-          {
-            ip: {
-              v4: this.electrumNodes[this.electrumNodeIndex].host,
+      if (this.useP2p) {
+        this.p2pPool = new p2p({
+          dnsSeed: false, // prevent seeding with DNS discovered known peers upon connecting
+          listenAddr: false, // prevent new peers being added from addr messages
+          network: this.network,
+          maxSize: 1,
+          addrs: [
+            // initial peers to connect to
+            {
+              ip: {
+                v4: this.electrumNodes[this.electrumNodeIndex].host,
+              },
             },
-          },
-        ],
-      });
+          ],
+        });
+      }
 
-      if ((await this.GetCandidates()).length < 100) {
+      if (this.p2pPool && (await this.GetCandidates()).length < 100) {
         console.log("connecting to p2p");
         this.p2pPool.on("candidate", this.NewCandidate);
         this.p2pPool.on("peerready", (_, server) => {
