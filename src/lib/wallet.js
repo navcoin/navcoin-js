@@ -165,7 +165,7 @@ export class WalletFile extends events.EventEmitter {
     this.daoConsultations = {};
     this.daoProposals = {};
     this.minPoolSize = options.minPoolSize;
-    this.useP2p = options.useP2p || true;
+    this.useP2p = options.useP2p === undefined ? true : options.useP2p;
 
     if (!this.db.open) throw new Error("DB did not load.");
 

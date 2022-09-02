@@ -1,6 +1,6 @@
 {
   "name": "navcoin-js",
-  "version": "1.1.169",
+  "version": "1.1.170",
   "description": "Navcoin Javascript Library",
   "main": "./dist/index.js",
   "scripts": {
