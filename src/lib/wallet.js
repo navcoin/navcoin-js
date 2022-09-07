@@ -73,27 +73,25 @@ export class WalletFile extends events.EventEmitter {
     this.queue = new queue(options.queueSize);
     this.p2pPool = undefined;
 
-    let self = this;
-
     this.queue.on("progress", (progress, pending, total) => {
-      self.emit("sync_status", progress, pending, total);
+      this.emit("sync_status", progress, pending, total);
     });
 
     this.queue.on("end", async () => {
-      if ((await self.GetPoolSize(AddressTypes.XNAV)) < this.GetMinPoolSize()) {
+      if ((await this.GetPoolSize(AddressTypes.XNAV)) < this.GetMinPoolSize()) {
         this.Log("Need to fill the xNAV key pool");
-        await self.xNavFillKeyPool(
-          self.spendingPassword,
+        await this.xNavFillKeyPool(
+          this.spendingPassword,
           this.GetMinPoolSize() * 2
         );
       } else {
-        self.spendingPassword = "";
-        self.emit("sync_finished");
+        this.spendingPassword = "";
+        this.emit("sync_finished");
       }
     });
 
     this.queue.on("started", () => {
-      self.emit("sync_started");
+      this.emit("sync_started");
     });
 
     this.network = options.network || "mainnet";
@@ -793,8 +791,6 @@ export class WalletFile extends events.EventEmitter {
       }:${this.electrumNodes[this.electrumNodeIndex].port}`
     );
 
-    let self = this;
-
     this.client.subscribe.on("socket.error", async (e) => {
       this.connected = false;
       this.emit("disconnected");
@@ -805,7 +801,7 @@ export class WalletFile extends events.EventEmitter {
         }:${this.electrumNodes[this.electrumNodeIndex].port}: ${e}`
       );
 
-      await self.ManageElectrumError(e);
+      await this.ManageElectrumError(e);
     });
 
     this.client.subscribe.on("ready", async () => {
@@ -837,7 +833,7 @@ export class WalletFile extends events.EventEmitter {
       this.client.subscribe.on(
         "blockchain.headers.subscribe",
         async (event) => {
-          await self.SetTip(event[0].height);
+          await this.SetTip(event[0].height);
         }
       );
 
@@ -930,7 +926,7 @@ export class WalletFile extends events.EventEmitter {
       this.client.subscribe.on(
         "blockchain.scripthash.subscribe",
         async (event) => {
-          await self.ReceivedScriptHashStatus(event[0], event[1]);
+          await this.ReceivedScriptHashStatus(event[0], event[1]);
         }
       );
     });
