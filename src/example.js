@@ -11,7 +11,7 @@ const spendingPassword = undefined; // Password used to send transactions
 const mnemonic =
   "bracket shrug kit web three run stem resist barrel spring bounce clock";
 const type = undefined; // Wallet type next, navcoin-core or navcoin-js-v1
-const zapwallettxes = true; // Should the wallet be cleared of its history?
+const zapwallettxes = false; // Should the wallet be cleared of its history?
 const log = true; // Log to console
 const network = "testnet";
 

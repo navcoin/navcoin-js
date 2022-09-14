@@ -2614,7 +2614,9 @@ export class WalletFile extends events.EventEmitter {
     vData = new Buffer([]),
     extraKey = undefined,
     extraIn = 0,
-    aggFee = 0
+    aggFee = 0,
+    from = [],
+    useFullAmount = false
   ) {
     if (typeof tokenId === "string") {
       return await this.xNavCreateTransaction(
@@ -2640,11 +2642,17 @@ export class WalletFile extends events.EventEmitter {
 
     let utx = await this.GetUtxos(OutputTypes.XNAV);
     let utxos = [];
+    let utxoAmount = 0;
 
     for (const out_i in utx) {
       let out = utx[out_i];
 
       if (!(out.output.isCt() || out.output.isNft())) continue;
+
+      if (from.length && from.indexOf(out.txid + ":" + out.vout) == -1)
+        continue;
+
+      utxoAmount += out.amount ? out.amount : out.satoshis;
 
       utxos.push(out);
     }
@@ -2654,7 +2662,7 @@ export class WalletFile extends events.EventEmitter {
     let dests = [
       {
         dest: dest,
-        amount: amount,
+        amount: useFullAmount ? utxoAmount : amount,
         memo: memo,
         vData: vData,
         extraKey: extraKey,
@@ -2668,7 +2676,7 @@ export class WalletFile extends events.EventEmitter {
       dests,
       mvk,
       msk,
-      subtractFee,
+      useFullAmount ? true : subtractFee,
       tokenId,
       tokenNftId,
       extraIn,
@@ -2689,7 +2697,9 @@ export class WalletFile extends events.EventEmitter {
     extraKey = undefined,
     ignoreInputs = false,
     ignoreFees = false,
-    aggFee = 0
+    aggFee = 0,
+    from = [],
+    useFullAmount = false
   ) {
     let consensus = await this.GetConsensusParameters();
 
@@ -2715,6 +2725,8 @@ export class WalletFile extends events.EventEmitter {
     let utxos = [];
     let utxosTok = [];
 
+    let utxoAmount = 0;
+
     if (!ignoreInputs) {
       for (const out_i in utx) {
         let out = utx[out_i];
@@ -2728,6 +2740,11 @@ export class WalletFile extends events.EventEmitter {
         let out = utxTok[out_i];
 
         if (!(out.output.isCt() || out.output.isNft())) continue;
+
+        if (from.length && from.indexOf(out.txid + ":" + out.vout) == -1)
+          continue;
+
+        utxoAmount += out.amount ? out.amount : out.satoshis;
 
         utxosTok.push(out);
       }
@@ -2745,7 +2762,7 @@ export class WalletFile extends events.EventEmitter {
       : [
           {
             dest: dest,
-            amount: amount,
+            amount: useFullAmount ? utxoAmount : amount,
             memo: memo,
             vData: vData,
             extraKey: extraKey,
@@ -2785,6 +2802,62 @@ export class WalletFile extends events.EventEmitter {
     let combinedTx = blsct.CombineTransactions(toCombine);
 
     return { tx: [combinedTx.toString()], fee: combinedTx.feeAmount };
+  }
+
+  async CreateCancelOrder(order) {
+    const tx = bitcore.Transaction(order.tx[0]);
+
+    if (!tx.inputs[0]) return;
+
+    let prevOutPoint =
+      tx.inputs[0].prevTxId.toString("hex") + ":" + tx.inputs[0].outputIndex;
+    let prevTx = await this.GetTx(tx.inputs[0].prevTxId.toString("hex"));
+    let output = prevTx.tx.outputs[tx.inputs[0].outputIndex];
+    let prevTokenId = output.tokenId
+      ? Buffer.from(output.tokenId, "hex")
+      : new Buffer(new Uint8Array(32));
+    let prevTokenNftId = output.tokenNftId;
+
+    if (
+      prevTokenId.toString("hex") ==
+      new Buffer(new Uint8Array(32)).toString("hex")
+    ) {
+      return await this.xNavCreateTransaction(
+        (
+          await this.xNavReceivingAddresses(true)
+        )[0].address,
+        0,
+        undefined,
+        undefined,
+        true,
+        new Buffer(new Uint8Array(32)),
+        -1,
+        undefined,
+        undefined,
+        0,
+        0,
+        [prevOutPoint],
+        true
+      );
+    } else {
+      return await this.tokenCreateTransaction(
+        (
+          await this.xNavReceivingAddresses(true)
+        )[0].address,
+        0,
+        undefined,
+        undefined,
+        prevTokenId,
+        prevTokenNftId,
+        undefined,
+        undefined,
+        false,
+        false,
+        0,
+        [prevOutPoint],
+        true
+      );
+    }
   }
 
   async VerifyOrder(order) {
