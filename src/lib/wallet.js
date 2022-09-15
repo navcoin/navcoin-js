@@ -2804,7 +2804,7 @@ export class WalletFile extends events.EventEmitter {
     return { tx: [combinedTx.toString()], fee: combinedTx.feeAmount };
   }
 
-  async CreateCancelOrder(order) {
+  async CreateCancelOrder(order, spendingPassword) {
     const tx = bitcore.Transaction(order.tx[0]);
 
     if (!tx.inputs[0]) return;
@@ -2828,7 +2828,7 @@ export class WalletFile extends events.EventEmitter {
         )[0].address,
         0,
         undefined,
-        undefined,
+        spendingPassword,
         true,
         new Buffer(new Uint8Array(32)),
         -1,
@@ -2846,7 +2846,7 @@ export class WalletFile extends events.EventEmitter {
         )[0].address,
         0,
         undefined,
-        undefined,
+        spendingPassword,
         prevTokenId,
         prevTokenNftId,
         undefined,
