@@ -1775,6 +1775,40 @@ export class WalletFile extends events.EventEmitter {
     return true;
   }
 
+  async LockOrderInputs(order) {
+    const tx = bitcore.Transaction(order.tx[0]);
+
+    for (let input of tx.inputs) {
+      let outPoint = input.prevTxId.toString("hex") + ":" + input.outputIndex;
+      await this.db.SpendUtxo(outPoint, "locked-order");
+    }
+
+    this.emit("new_tx", []);
+  }
+
+  async UnlockOrderInputs(order) {
+    const tx = bitcore.Transaction(order.tx[0]);
+
+    for (let input of tx.inputs) {
+      let outPoint = input.prevTxId.toString("hex") + ":" + input.outputIndex;
+
+      let currentStatus = await this.client.blockchain_outpoint_subscribe(
+        input.prevTxId.toString("hex"),
+        input.outputIndex
+      );
+      await this.client.blockchain_outpoint_unsubscribe(
+        input.prevTxId.toString("hex"),
+        input.outputIndex
+      );
+
+      if (currentStatus && currentStatus.spender_txhash)
+        await this.db.SpendUtxo(outPoint, currentStatus.spender_txhash);
+      else await this.db.SpendUtxo(outPoint, "");
+    }
+
+    this.emit("new_tx", []);
+  }
+
   async GetTx(hash, inMine, height, requestInputs = true) {
     let tx;
     let prevHeight;
