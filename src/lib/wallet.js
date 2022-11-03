@@ -2624,6 +2624,20 @@ export class WalletFile extends events.EventEmitter {
 
     if (!utxos.length) throw new Error("No available xNAV outputs");
 
+    for (let i in dest) {
+      if (
+        typeof dests[i].dest === "string" &&
+        dest[i].dest.substring(
+          dests[i].dest.length - 4,
+          dest[i].dest.length
+        ) === ".nav"
+      ) {
+        let resolvedDest = (await this.ResolveName(dest[i].dest))["."]?.nav;
+        if (!resolvedDest) throw new Error("Can't resolve " + dest[i].dest);
+        dest[i].dest = resolvedDest;
+      }
+    }
+
     let tx = await blsct.CreateTransaction(
       utxos,
       dest,
@@ -2692,6 +2706,15 @@ export class WalletFile extends events.EventEmitter {
     }
 
     if (!utxos.length) throw new Error("No available xNAV outputs");
+
+    if (
+      typeof dest === "string" &&
+      dest.substring(dest.length - 4, dest.length) === ".nav"
+    ) {
+      let resolvedDest = (await this.ResolveName(dest))["."]?.nav;
+      if (!resolvedDest) throw new Error("Can't resolve " + dest);
+      dest = resolvedDest;
+    }
 
     let dests = [
       {
@@ -2802,6 +2825,20 @@ export class WalletFile extends events.EventEmitter {
             extraKey: extraKey,
           },
         ];
+
+    for (let i in dests) {
+      if (
+        typeof dests[i].dest === "string" &&
+        dests[i].dest.substring(
+          dests[i].dest.length - 4,
+          dests[i].dest.length
+        ) === ".nav"
+      ) {
+        let resolvedDest = (await this.ResolveName(dests[i].dest))["."]?.nav;
+        if (!resolvedDest) throw new Error("Can't resolve " + dests[i].dest);
+        dests[i].dest = resolvedDest;
+      }
+    }
 
     let txTok = await blsct.CreateTransaction(
       utxosTok,
@@ -3450,6 +3487,20 @@ export class WalletFile extends events.EventEmitter {
       },
     ];
 
+    for (let i in dests) {
+      if (
+        typeof dests[i].dest === "string" &&
+        dests[i].dest.substring(
+          dests[i].dest.length - 4,
+          dests[i].dest.length
+        ) === ".nav"
+      ) {
+        let resolvedDest = (await this.ResolveName(dests[i].dest))["."]?.nav;
+        if (!resolvedDest) throw new Error("Can't resolve " + dests[i].dest);
+        dests[i].dest = resolvedDest;
+      }
+    }
+
     let takeTx = await blsct.CreateTransaction(
       utxos,
       dests,
@@ -3790,7 +3841,15 @@ export class WalletFile extends events.EventEmitter {
   ) {
     if (amount <= 0) throw new TypeError("Amount must be greater than 0");
 
-    if (!(dest instanceof bitcore.Address))
+    if (!(dest instanceof bitcore.Address)) {
+      if (
+        typeof dest === "string" &&
+        dest.substring(dest.length - 4, dest.length) === ".nav"
+      ) {
+        let resolvedDest = (await this.ResolveName(dest))["."]?.nav;
+        if (!resolvedDest) throw new Error("Can't resolve " + dest);
+        dest = resolvedDest;
+      }
       return await this.NavCreateTransaction(
         new bitcore.Address(dest),
         amount,
@@ -3803,6 +3862,7 @@ export class WalletFile extends events.EventEmitter {
         ret,
         selectxnav
       );
+    }
 
     let msk = await this.GetMasterKey("xNavSpend", spendingPassword);
 
