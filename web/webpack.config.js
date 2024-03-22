@@ -19,6 +19,7 @@ module.exports = {
         contentBase: DIST,
         port: 9011,
         writeToDisk: true,
+        hot: true,
     },
     module: {
         rules: [

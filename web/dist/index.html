@@ -1,17 +1,224 @@
 <html>
-<head>
+  <head>
     <meta charset="UTF-8" />
     <title>navcoin-js</title>
-</head>
+  </head>
 
-<body>
-<main>
-    <header>
+  <body>
+    <main>
+      <header>Create Wallet</header>
+      <section>
+        <input type="text" id="click-message-input" />
 
-    </header>
-</main>
+        <button id="clickable-btn">Create Wallet</button>
+        <button id="disconnect-btn">Disconnect Wallet</button>
+        <button id="nav-create-btn">Create Transaction</button>
+        <button id="send-btn">Send Transaction</button>
+        <!-- <button id="list-btn">List Wallet</button> -->
+      </section>
+    </main>
 
-<script src="bundle.js" defer></script>
+    <script src="bundle.js" async defer></script>
+    <script type="text/javascript">
+      window.addEventListener("load", async function () {
+        try {
+          // your code here
+          console.log("Script Loaded in browser");
+          window.wallet = undefined;
+          window.njs = umd.njs;
+          const walletName = "Sattire";
+          const zapwallettxes = false;
+          const log = true;
+          const password = undefined;
+          const spendingPassword = undefined;
+          const clickableBtn = document.getElementById("clickable-btn");
+          const disconnectBtn = document.getElementById("disconnect-btn");
+          const listBtn = document.getElementById("list-btn");
+          const navCreateBtn = document.getElementById("nav-create-btn");
+          // const clearNodeBtn = document.getElementById("clear-node-btn");
 
-</body>
+          const mnemonic =
+            "bracket shrug kit web three run stem resist barrel spring bounce clock";
+
+          njs.wallet.Init().then(async () => {
+            console.log("Wallet Init...");
+          });
+          async function disconnectWallet(instance) {
+            instance.Disconnect();
+
+            instance.on("disconnected", () => {
+              console.log("Wallet disconnected!!!....");
+              instance.CloseDb();
+              instance.ClearNodeList();
+            });
+          }
+
+          async function GetUtxos(instance) {
+            console.log("INSTANCE ", instance)
+            let utxos = await instance.GetUtxos(
+              0x1,
+              "NLp3GVzBsQqfBxeTcD18MPLRd95Z9BXWhW"
+            );
+            console.log("utxos  ", utxos);
+          }
+
+          async function listWallet(instance) {
+            let walletList = await instance.GetHistory();
+            console.log("WALLET LIST IN DB", walletList);
+          }
+          /*
+          to: address to send asset to
+          from: an object containing the information of the address sending the asset
+
+          */
+          async function createTransaction(instance) {
+         
+
+            let walletPass = await njs.wallet.getMasterKey(
+              "xNavSpend",
+              instance.spendingPassword,
+              instance.db
+            );
+            console.log("walletPass   ", walletPass);
+            let amount = 0.005;
+
+            let obj = {
+              dest: "xNVPemLR2BwMtSqg9Wstu42ne1CfoAxhnypQyizbmeUzFKRQLGqjiZ9LLGipYZJhzWiK6YyY14uL8B5rQky6uiAfYUvviWNJb54q7qwKhkw5wmmsGZDYTMtVs8hbTGmH1XNeptshapz",
+              amount: Math.floor(amount * 1e8).toString(10),
+              memo: "",
+              subtractFee: false,
+              fromAddress: "NfLgDYL4C3KKXDS8tLRAFM7spvLykV8v9A",
+              walletPassword: walletPass,
+            };
+            let ret = await instance.NavCreateTransaction(
+              (dest = obj.dest),
+              (amount = obj.amount),
+              (memo = obj.memo),
+              (walletPassword = instance.spendingPassword),
+              (subtractFee = true),
+              100000,
+              0x1,
+              (fromAddress = undefined)
+            );
+
+            // let ret = await GetUtxos(instance);
+
+            console.log("RETURN ", ret);
+          }
+
+          async function sendTransaction(tx) {}
+
+          async function createWallet2() {
+            let instance = new njs.wallet.WalletFile({
+              file: walletName,
+              mnemonic: mnemonic,
+              type: "",
+              password: password,
+              spendingPassword: spendingPassword,
+              zapwallettxes: zapwallettxes,
+              log: log,
+              network: "mainnet",
+            });
+
+            instance.on("new_mnemonic", (mnemonic) =>
+              console.log(
+                `wallet created with mnemonic ${mnemonic} - please back it up!`
+              )
+            );
+
+            instance.on("loaded", async () => {
+              console.log("wallet loaded");
+
+              console.log(
+                "xNAV receiving address: " +
+                  (await instance.getAddress.xNavReceivingAddresses(true))[0]
+                    .address
+              );
+              console.log(
+                "NAV receiving address: " +
+                  (await instance.getAddress.NavReceivingAddresses(true))[0]
+                    .address
+              );
+              console.log(" Run code below....");
+              await instance.Connect();
+            });
+
+            instance.on("connected", () => {
+              console.log("connected. waiting for sync");
+              console.log(instance.client, instance.db);
+            });
+
+            instance.on("sync_status", async (progress, pending) => {
+              console.log(`Sync ${progress}%`);
+            });
+
+            instance.on("db_load_error", async (err) => {
+              console.log(`Error Load DB: ${err}`);
+              process.exit(1);
+            });
+
+            instance.on("sync_started", async () => {
+              console.log("sync_started");
+            });
+
+            instance.on("sync_finished", async () => {
+              console.log("sync_finished");
+              console.log(
+                `Balance ${JSON.stringify(
+                  await instance.assetBalance.GetBalance()
+                )}`
+              );
+
+              // console.log(
+              //   "njs.wallet.getMyTokens(instance.db)  ",
+              //   await njs.wallet.getMyTokens(instance.db)
+              // );
+            });
+
+            instance.on("bootstrap_started", () => {
+              console.log("bootstrap_started");
+            });
+
+            instance.on("bootstrap_progress", (count) => {
+              console.log("bootstrap_progress", count);
+            });
+
+            instance.on("bootstrap_finished", () => {
+              console.log("bootstrap_finished");
+            });
+
+            instance.on("new_tx", async (list) => {
+              console.log(`Received transaction ${JSON.stringify(list)}`);
+              console.log(
+                `Balance ${JSON.stringify(
+                  await instance.assetBalance.GetBalance()
+                )}`
+              );
+            });
+
+            await instance.Load({
+              bootstrap: njs.wallet.xNavBootstrap,
+            });
+            // listBtn.addEventListener("click", listWallet.bind(null, instance));
+            disconnectBtn.addEventListener(
+              "click",
+              disconnectWallet.bind(null, instance)
+            );
+            // listBtn.addEventListener("click", listWallet.bind(null, instance));
+            await navCreateBtn.addEventListener(
+              "click",
+              createTransaction.bind(null, instance)
+            );
+          }
+
+          clickableBtn.addEventListener("click", createWallet2);
+        } catch (err) {
+          console.log("Error: ", err);
+          njs.wallet.Init().then(async () => {
+            console.log("Wallet Init...");
+          });
+        }
+      });
+    </script>
+  </body>
 </html>
