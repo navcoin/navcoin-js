@@ -23,16 +23,27 @@ export { default as AddressTypes } from "./utils/address_types.js";
 import * as constants from "./utils/constants";
 import { sha256sha256 } from "@aguycalled/bitcore-lib/lib/crypto/hash";
 
+import { Logger } from './logger.js';
+import { GetAddress } from "./get_address.js";
+import { errObj, RECONNECT_NODE } from "./utils/error.js";
+import { GetInfo } from "./get_info.js";
+import { AssetBalance } from "./asset_balance.js";
+import { getTip } from "./get_tip.js";
+export { default as getTip } from "./get_tip.js";
+import { isMyName, getMyTokens, addName, getMyNames, getStatusHashForScriptHash, getPoolSize } from "./db_requests.js";
+export { isMyName, getMyTokens, addName, getMyNames, getPoolSize } from "./db_requests.js";
+import { isValidDotNavKey, isValidDotNavName } from './validate_value.js';
+export { isValidDotNavKey, isValidDotNavName } from "./validate_value.js";
+import { getMasterKey, getMasterSpendKey, getMasterViewKey, getPrivateKey, setMasterKey, navGetPrivateKeys } from "./key_request.js";
+export { getMasterKey, getMasterSpendKey, getMasterViewKey, getPrivateKey, setMasterKey, navGetPrivateKeys } from "./key_request.js";
+import { TxProcessor } from "./tx_processor.js";
+import { StakingAddress } from "./staking_address.js";
+import { encrypt, decrypt } from "./crypt.js";
 const p2p = require("@aguycalled/bitcore-p2p").Pool;
 
 export * as xNavBootstrap from "./xnav_bootstrap.js";
 
 let db = Db["Dexie"].default;
-
-const asyncFilter = async (arr, predicate) =>
-  Promise.all(arr.map(predicate)).then((results) =>
-    arr.filter((_v, index) => results[index])
-  );
 
 export const Init = async () => {
   await blsct.Init();
@@ -73,13 +84,14 @@ export class WalletFile extends events.EventEmitter {
     this.queue = new queue(options.queueSize);
     this.p2pPool = undefined;
 
+
     this.queue.on("progress", (progress, pending, total) => {
       this.emit("sync_status", progress, pending, total);
     });
 
     this.queue.on("end", async () => {
-      if ((await this.GetPoolSize(AddressTypes.XNAV)) < this.GetMinPoolSize()) {
-        this.Log("Need to fill the xNAV key pool");
+      if ((await getPoolSize(this.db, AddressTypes.XNAV)) < this.GetMinPoolSize()) {
+        this.Log.Message("Need to fill the xNAV key pool");
         await this.xNavFillKeyPool(
           this.spendingPassword,
           this.GetMinPoolSize() * 2
@@ -103,6 +115,7 @@ export class WalletFile extends events.EventEmitter {
     });
 
     this.db.on("db_open", () => {
+      this.Log.Message("Database is Open....")
       this.emit("db_open");
     });
 
@@ -110,6 +123,29 @@ export class WalletFile extends events.EventEmitter {
       this.emit("db_closed");
       this.Disconnect();
     });
+
+    this.Log = new Logger(this.log);
+    this.assetBalance = new AssetBalance({ client: this.client, db: this.db, log: this.log });
+    this.getAddress = new GetAddress({
+      client: this.client,
+      db: this.db,
+      assetBalance: this.assetBalance,
+      log: this.log
+    });
+    this.getInfo = new GetInfo(this.client, this.db);
+    this.txProcessor = new TxProcessor({
+      client: this.client,
+      db: this.db,
+      network: this.network,
+      error: this.ManageElectrumError,
+      addOutput: this.AddOutput,
+      deriveSpendingKeyFromStringHash: this.DeriveSpendingKeyFromStringHash,
+      spendingPassword: this.spendingPassword,
+      log: this.log,
+    });
+    this.stakingAddress = new StakingAddress({ db: this.db, sync: this.Sync, network: this.network })
+
+
   }
 
   async InitDb(options = {}) {
@@ -129,6 +165,7 @@ export class WalletFile extends events.EventEmitter {
   }
 
   static async ListWallets() {
+
     return await db.ListWallets();
   }
 
@@ -140,17 +177,48 @@ export class WalletFile extends events.EventEmitter {
     return await db.RemoveWallet(filename);
   }
 
-  async GetPoolSize(type, change) {
-    return await this.db.GetPoolSize(type, change);
+
+  async ManageElectrumError(e) {
+    if (
+      e == errObj.closeConnect ||
+      e == errObj.notEstablished ||
+      e
+        .toString()
+        .substr(0, errObj.electrumServer.length) ==
+      errObj.electrumServer ||
+      e == errObj.serverBusy
+    ) {
+      this.connected = false;
+      this.electrumNodeIndex =
+        (this.electrumNodeIndex + 1) % this.electrumNodes.length;
+
+      this.emit(errObj.failedConnection);
+
+      if (this.client) this.client.close();
+
+      this.failedConnections = this.failedConnections + 1;
+
+      this.Log.Message(`${RECONNECT_NODE} ${this.electrumNodeIndex}`);
+
+      if (this.failedConnections >= this.electrumNodes.length) {
+        this.emit(errObj.noServer);
+        sleep(5);
+        await this.Connect(true);
+
+      } else {
+        sleep(1);
+        await this.Connect(false);
+
+      }
+    }
+
+    if (e === errObj.serverBusy) {
+      sleep(5);
+    }
   }
 
   GetMinPoolSize() {
     return this.minPoolSize || 10;
-  }
-
-  Log(str) {
-    if (!this.log) return;
-    console.log(` [navcoin-js] ${str}`);
   }
 
   async Load(options) {
@@ -168,6 +236,7 @@ export class WalletFile extends events.EventEmitter {
     if (!this.db.open) throw new Error("DB did not load.");
 
     let network = await this.db.GetValue("network");
+    this.Log.Message(network, ' NETWORK');
 
     if (!network) {
       await this.db.SetValue("network", this.network);
@@ -195,7 +264,7 @@ export class WalletFile extends events.EventEmitter {
           this.network
         );
 
-        await this.SetMasterKey(masterKey, this.spendingPassword);
+        await setMasterKey(this.db, masterKey, this.spendingPassword, this.type);
       } else if (this.type === "next") {
         let value = Buffer.from(new Mnemonic(mnemonic).toString());
         let hash = bitcore.crypto.Hash.sha256(value);
@@ -209,11 +278,11 @@ export class WalletFile extends events.EventEmitter {
           this.network
         );
 
-        await this.SetMasterKey(masterKey, this.spendingPassword);
+        await setMasterKey(this.db, masterKey, this.spendingPassword, this.type);
       } else if (this.type === "navcoin-core") {
         let keyMaterial = Mnemonic.mnemonicToData(mnemonic);
 
-        await this.SetMasterKey(keyMaterial, this.spendingPassword);
+        await setMasterKey(this.db, keyMaterial, this.spendingPassword, this.type);
       } else if (this.type === "navcash") {
         let masterKey = bitcore.HDPrivateKey.fromSeed(
           await electrumMnemonic.mnemonicToSeed(mnemonic, {
@@ -221,14 +290,14 @@ export class WalletFile extends events.EventEmitter {
           })
         );
 
-        await this.SetMasterKey(masterKey, this.spendingPassword);
+        await setMasterKey(this.db, masterKey, this.spendingPassword, this.type);
       } else {
         let masterKey = await new Mnemonic(mnemonic).toHDPrivateKeyAsync(
           "",
           this.network
         );
 
-        await this.SetMasterKey(masterKey, this.spendingPassword);
+        await setMasterKey(this.db, masterKey, this.spendingPassword, this.type);
       }
 
       if (options.bootstrap) {
@@ -259,7 +328,7 @@ export class WalletFile extends events.EventEmitter {
       Math.random() * this.electrumNodes.length
     );
 
-    this.mvk = await this.GetMasterViewKey();
+    this.mvk = await getMasterViewKey(this.db);
 
     this.firstSynced = {};
     this.firstSyncCompleted = false;
@@ -275,7 +344,7 @@ export class WalletFile extends events.EventEmitter {
       await this.db.SetValue("creationTip", this.creationTip);
     }
 
-    if (await this.GetMasterKey("nav", this.spendingPassword)) {
+    if (await getMasterKey("nav", this.spendingPassword, this.db)) {
       await this.xNavFillKeyPool(this.spendingPassword, this.GetMinPoolSize());
       await this.NavFillKeyPool(this.spendingPassword, this.GetMinPoolSize());
     }
@@ -285,7 +354,7 @@ export class WalletFile extends events.EventEmitter {
         this.network == "mainnet"
           ? "NfLgDYL4C3KKXDS8tLRAFM7spvLykV8v9A"
           : "n3uJuww32YGUbsoywpmG1LmgVQYMsg5Ace";
-      await this.AddStakingAddress(pool, undefined, false);
+      await this.stakingAddress.AddStakingAddress(pool, undefined, false);
       await this.db.AddLabel(pool, "NavCash Pool");
     }
 
@@ -309,19 +378,19 @@ export class WalletFile extends events.EventEmitter {
   }
 
   async xNavFillKeyPool(spendingPassword, count = 10) {
-    let mk = await this.GetMasterKey("xNavSpend", spendingPassword);
+    let mk = await getMasterKey("xNavSpend", spendingPassword, this.db);
 
     if (!mk) return;
 
     let filled = 0;
 
-    while ((await this.GetPoolSize(AddressTypes.XNAV)) < count) {
+    while ((await getPoolSize(this.db, AddressTypes.XNAV)) < count) {
       filled++;
       await this.xNavCreateSubaddress(spendingPassword);
     }
 
     if (this.poolFilled && filled > 0) {
-      this.Log("xNAV pool was filled with " + filled + " new keys. Resyncing.");
+      this.Log.Message("xNAV pool was filled with " + filled + " new keys. Resyncing.");
       await this.SyncScriptHash(
         Buffer.from(
           bitcore.crypto.Hash.sha256(
@@ -337,133 +406,31 @@ export class WalletFile extends events.EventEmitter {
   async NavFillKeyPool(spendingPassword, count = 10) {
     if (this.type === "next" || this.type == "watch") return;
 
-    let mk = await this.GetMasterKey("nav", spendingPassword);
+    let mk = await getMasterKey("nav", spendingPassword, this.db);
 
     if (!mk) return;
 
     let filled = 0;
 
-    while ((await this.GetPoolSize(AddressTypes.NAV)) < count) {
+    while ((await getPoolSize(this.db, AddressTypes.NAV)) < count) {
       filled++;
       await this.NavCreateAddress(spendingPassword);
     }
 
     if (this.type == "navcash" || this.type == "navcoin-core") {
-      while ((await this.GetPoolSize(AddressTypes.NAV, 1)) < count) {
+      while ((await getPoolSize(this.db, AddressTypes.NAV, 1)) < count) {
         filled++;
         await this.NavCreateAddress(spendingPassword, 1);
       }
     }
 
-    this.Log("NAV pool was filled with " + filled + " new keys.");
-  }
-
-  async xNavReceivingAddresses(all = true) {
-    return await this.db.GetXNavReceivingAddresses(all);
-  }
-
-  async NavReceivingAddresses(all = true) {
-    return await this.db.GetNavReceivingAddresses(all);
-  }
-
-  async GetAllAddresses() {
-    let ret = { spending: { public: {}, private: {} }, staking: {} };
-
-    let receiving = await this.db.GetNavReceivingAddresses(true);
-
-    for (let i in receiving) {
-      let address = receiving[i];
-      ret.spending.public[address.address] = {
-        balances: await this.GetBalance(address.address),
-        used: address.used,
-      };
-
-      let label = await this.db.GetLabel(address.address);
-
-      if (label != address.address)
-        ret.spending.public[address.address].label = label;
-    }
-
-    let xnav = await this.db.GetXNavReceivingAddresses(true);
-
-    for (let i in xnav) {
-      let address = xnav[i];
-      ret.spending.private[address.address] = {
-        balances: await this.GetBalance(address.hash),
-        used: address.used,
-      };
-
-      let label = await this.db.GetLabel(address.address);
-
-      if (label != address.address)
-        ret.spending.private[address.address].label = label;
-    }
-
-    let staking = await this.db.GetStakingAddresses();
-
-    for (let j in staking) {
-      let address = staking[j];
-      ret.staking[address.address] = {
-        staking: (await this.GetBalance(address.address)).staked,
-      };
-
-      let label = await this.db.GetLabel(address.address);
-
-      if (label != address.address) ret.staking[address.address].label = label;
-    }
-
-    return ret;
-  }
-
-  async NavGetPrivateKeys(spendingPassword, address) {
-    let list = address
-      ? [await this.db.GetNavAddress(address)]
-      : await this.db.GetNavReceivingAddresses(true);
-
-    for (let i in list) {
-      list[i].privateKey = (
-        await this.GetPrivateKey(list[i].hash, spendingPassword)
-      ).toWIF();
-      delete list[i].value;
-    }
-
-    return list;
-  }
-
-  async GetMasterKey(key, password) {
-    if (!this.db) return undefined;
-
-    let privK = await this.db.GetMasterKey("nav", password);
-
-    if (!privK) return undefined;
-
-    return privK;
-  }
-
-  async GetMasterSpendKey(key) {
-    if (!this.db) return undefined;
-
-    let privK = await this.db.GetMasterKey("xNavSpend", key);
-
-    if (!privK) return undefined;
-
-    return blsct.mcl.deserializeHexStrToFr(privK);
-  }
-
-  async GetMasterViewKey() {
-    if (!this.db) return undefined;
-
-    let pubK = await this.db.GetValue("masterViewKey");
-
-    if (!pubK) return undefined;
-
-    return blsct.mcl.deserializeHexStrToFr(pubK);
+    this.Log.Message("NAV pool was filled with " + filled + " new keys.");
   }
 
   async xNavCreateSubaddress(sk, acct = 0) {
     let masterViewKey = this.mvk;
 
-    let masterSpendKey = await this.GetMasterSpendKey(sk);
+    let masterSpendKey = await getMasterSpendKey(this.db, sk);
 
     if (!masterSpendKey) return;
 
@@ -503,7 +470,7 @@ export class WalletFile extends events.EventEmitter {
   async NavCreateAddress(sk, change = 0) {
     if (this.type === "next") return;
 
-    let mk = await this.GetMasterKey("nav", sk);
+    let mk = await getMasterKey("nav", sk, this.db);
 
     if (!mk) return;
 
@@ -625,9 +592,6 @@ export class WalletFile extends events.EventEmitter {
     await this.db.SetValue("ChainTip", height);
   }
 
-  async GetTip() {
-    return (await this.db.GetValue("ChainTip")) || -1;
-  }
 
   AddressToScriptHash(address) {
     return this.ScriptToScriptHash(bitcore.Script.fromAddress(address));
@@ -664,7 +628,7 @@ export class WalletFile extends events.EventEmitter {
           );
 
           for (let j in stakingAddresses) {
-            await this.AddStakingAddress(
+            await this.stakingAddress.AddStakingAddress(
               stakingAddresses[j][0],
               stakingAddresses[j][1],
               false
@@ -699,62 +663,6 @@ export class WalletFile extends events.EventEmitter {
     return ret;
   }
 
-  async GetStakingAddresses() {
-    let ret = [];
-
-    let addresses = await this.db.GetStakingAddresses();
-
-    for (let i in addresses) {
-      ret.push(addresses[i].address);
-    }
-
-    return ret;
-  }
-
-  async GetStatusHashForScriptHash(s) {
-    return await this.db.GetStatusForScriptHash(s);
-  }
-
-  async SetMasterKey(masterkey, key) {
-    if (await this.db.GetMasterKey(key)) return false;
-
-    let masterKey = (
-      this.type === "navcoin-core"
-        ? bitcore.HDPrivateKey.fromSeed(masterkey)
-        : masterkey
-    ).toString();
-    let masterPubKey = bitcore.HDPrivateKey(masterKey).hdPublicKey.toString();
-
-    let { masterViewKey, masterSpendKey } = blsct.DeriveMasterKeys(
-      this.type === "navcoin-core"
-        ? bitcore.PrivateKey(masterkey)
-        : bitcore.HDPrivateKey(masterKey)
-    );
-    let masterSpendPubKey = blsct.mcl.mul(blsct.G(), masterSpendKey);
-    let masterViewPubKey = blsct.mcl.mul(blsct.G(), masterViewKey);
-
-    await this.db.AddMasterKey("nav", masterKey, key);
-    await this.db.AddMasterKey(
-      "xNavSpend",
-      masterSpendKey.serializeToHexStr(),
-      key
-    );
-    await this.db.SetValue("masterViewKey", masterViewKey.serializeToHexStr());
-    await this.db.SetValue(
-      "masterSpendPubKey",
-      masterSpendPubKey.serializeToHexStr()
-    );
-    await this.db.SetValue(
-      "masterViewPubKey",
-      masterViewPubKey.serializeToHexStr()
-    );
-    await this.db.SetValue("masterPubKey", masterPubKey);
-
-    this.Log("master keys written");
-
-    return true;
-  }
-
   ClearNodeList() {
     this.electrumNodes = [];
   }
@@ -772,6 +680,8 @@ export class WalletFile extends events.EventEmitter {
 
     this.Disconnect();
 
+    console.log("this.electrumNodes[this.electrumNodeIndex]..", this.electrumNodes[this.electrumNodeIndex])
+
     if (!this.electrumNodes[this.electrumNodeIndex]) this.electrumNodeIndex = 0;
 
     if (!this.electrumNodes[this.electrumNodeIndex])
@@ -785,9 +695,8 @@ export class WalletFile extends events.EventEmitter {
       this.electrumNodes[this.electrumNodeIndex].proto
     );
 
-    this.Log(
-      `Trying to connect to ${
-        this.electrumNodes[this.electrumNodeIndex].host
+    this.Log.Message(
+      `Trying to connect to ${this.electrumNodes[this.electrumNodeIndex].host
       }:${this.electrumNodes[this.electrumNodeIndex].port}`
     );
 
@@ -796,8 +705,7 @@ export class WalletFile extends events.EventEmitter {
       this.emit("disconnected");
       this.emit("connection_failed");
       console.error(
-        `error connecting to electrum ${
-          this.electrumNodes[this.electrumNodeIndex].host
+        `error connecting to electrum ${this.electrumNodes[this.electrumNodeIndex].host
         }:${this.electrumNodes[this.electrumNodeIndex].port}: ${e}`
       );
 
@@ -805,12 +713,19 @@ export class WalletFile extends events.EventEmitter {
     });
 
     this.client.subscribe.on("ready", async () => {
+      console.log("I am connected    ")
       this.emit(
         "connected",
         this.electrumNodes[this.electrumNodeIndex].host +
-          ":" +
-          this.electrumNodes[this.electrumNodeIndex].port
+        ":" +
+        this.electrumNodes[this.electrumNodeIndex].port
       );
+
+      console.info(
+        `success connecting to electrum ${this.electrumNodes[this.electrumNodeIndex].host
+        }:${this.electrumNodes[this.electrumNodeIndex].port}`
+      );
+
       this.connected = true;
 
       if (resetFailed) this.failedConnections = 0;
@@ -926,6 +841,7 @@ export class WalletFile extends events.EventEmitter {
       this.client.subscribe.on(
         "blockchain.scripthash.subscribe",
         async (event) => {
+          console.log("event  ", event, event[0], event[1])
           await this.ReceivedScriptHashStatus(event[0], event[1]);
         }
       );
@@ -955,7 +871,7 @@ export class WalletFile extends events.EventEmitter {
   async QueueTx(hash, inMine, height, requestInputs, priority) {
     this.queue.add(
       this,
-      this.GetTx,
+      this.txProcessor.GetTx,
       [hash, inMine, height, requestInputs],
       priority
     );
@@ -1004,7 +920,7 @@ export class WalletFile extends events.EventEmitter {
 
       this.emit("bootstrap_progress", txs.list.length);
 
-      this.Log(`Queuing ${pending.length} pending transactions`);
+      this.Log.Message(`Queuing ${pending.length} pending transactions`);
       this.alreadyQueued = true;
 
       for (let i in scriptHashes) {
@@ -1036,7 +952,7 @@ export class WalletFile extends events.EventEmitter {
     }
 
     if (!staking) {
-      let stakingAddresses = await this.GetStakingAddresses();
+      let stakingAddresses = await this.getAddress.GetStakingAddresses();
 
       for (let k in stakingAddresses) {
         let address = stakingAddresses[k];
@@ -1045,42 +961,6 @@ export class WalletFile extends events.EventEmitter {
     }
   }
 
-  async ManageElectrumError(e) {
-    if (
-      e == "Error: close connect" ||
-      e == "Error: connection not established" ||
-      e
-        .toString()
-        .substr(0, "Error: failed to connect to electrum server:".length) ==
-        "Error: failed to connect to electrum server:" ||
-      e == "server busy - request timed out"
-    ) {
-      this.connected = false;
-      this.electrumNodeIndex =
-        (this.electrumNodeIndex + 1) % this.electrumNodes.length;
-
-      this.emit("connection_failed");
-
-      if (this.client) this.client.close();
-
-      this.failedConnections = this.failedConnections + 1;
-
-      this.Log(`Reconnecting to electrum node ${this.electrumNodeIndex}`);
-
-      if (this.failedConnections >= this.electrumNodes.length) {
-        this.emit("no_servers_available");
-        sleep(5);
-        await this.Connect(true);
-      } else {
-        sleep(1);
-        await this.Connect(false);
-      }
-    }
-
-    if (e === "server busy - request timed out") {
-      sleep(5);
-    }
-  }
 
   Disconnect() {
     if (this.client) this.client.close();
@@ -1095,12 +975,14 @@ export class WalletFile extends events.EventEmitter {
   }
 
   async ReceivedScriptHashStatus(s, status, txs) {
-    let prevStatus = await this.GetStatusHashForScriptHash(s);
+    // console.log("ReceivedScriptHashStatus  ", s, status, txs)
+    let prevStatus = await getStatusHashForScriptHash(this.db, s);
+    // console.log("prevStatus  ",prevStatus)
 
     if (status && status !== prevStatus) {
       await this.db.SetStatusForScriptHash(s, status);
 
-      this.Log(`Received new status ${status} for ${s}. Syncing.`);
+      this.Log.Message(`Received new status ${status} for ${s}. Syncing.`);
 
       if (!txs) {
         this.queue.add(
@@ -1131,7 +1013,7 @@ export class WalletFile extends events.EventEmitter {
     let prevMaxHeight = -10;
     let lb = this.lastBlock + 0;
 
-    this.Log("Syncing " + scripthash);
+    this.Log.Message("Syncing " + scripthash);
 
     let historyRange = {};
 
@@ -1139,7 +1021,7 @@ export class WalletFile extends events.EventEmitter {
       try {
         currentHistory = await this.db.GetScriptHashHistory(scripthash);
       } catch (e) {
-        this.Log(`error getting history from db: ${e}`);
+        this.Log.Message(`error getting history from db: ${e}`);
       }
 
       let currentLastHeight = this.creationTip ? this.creationTip : 0;
@@ -1171,9 +1053,8 @@ export class WalletFile extends events.EventEmitter {
       let newHistory = [];
 
       try {
-        this.Log(
-          `requesting tx history for ${scripthash} from ${
-            currentLastHeight - 10
+        this.Log.Message(
+          `requesting tx history for ${scripthash} from ${currentLastHeight - 10
           }`
         );
 
@@ -1183,11 +1064,11 @@ export class WalletFile extends events.EventEmitter {
           scripthash,
           Math.max(0, currentLastHeight - 10)
         );
-        this.Log(
+        this.Log.Message(
           `${scripthash}: received ${newHistory.history.length} transactions`
         );
       } catch (e) {
-        this.Log(`error getting history: ${e}`);
+        this.Log.Message(`error getting history: ${e}`);
         await this.ManageElectrumError(e);
         return false;
       }
@@ -1257,7 +1138,7 @@ export class WalletFile extends events.EventEmitter {
       if (reachedMempool || (currentLastHeight >= lb && lb > 0)) break;
     }
 
-    this.Log(`Finished receiving transaction list for script ${scripthash}`);
+    this.Log.Message(`Finished receiving transaction list for script ${scripthash}`);
 
     /*for (let e in historyRange)
       {
@@ -1312,6 +1193,7 @@ export class WalletFile extends events.EventEmitter {
     return await this.db.GetWalletHistory();
   }
 
+  /** Get Unspent transaction output **/
   async GetUtxos(
     type = OutputTypes.NAV | OutputTypes.STAKED,
     address = undefined,
@@ -1333,7 +1215,8 @@ export class WalletFile extends events.EventEmitter {
 
     let utxos = await this.db.GetUtxos();
 
-    let tip = await this.GetTip();
+    let tip = await getTip(this.db);
+
     let ret = [];
 
     for (let u in utxos) {
@@ -1342,7 +1225,6 @@ export class WalletFile extends events.EventEmitter {
       if (!(utxo.type & type)) continue;
 
       let outpoint = utxo.id.split(":");
-
       let tx = await this.db.GetTx(outpoint[0]);
 
       let pending = false;
@@ -1411,284 +1293,6 @@ export class WalletFile extends events.EventEmitter {
     return ret;
   }
 
-  async GetBalance(address) {
-    if (address instanceof bitcore.Address)
-      return await this.GetBalance(address.hashBuffer);
-
-    if (typeof address === "string" && !bitcore.util.js.isHexa(address))
-      return await this.GetBalance(bitcore.Address(address));
-
-    if (typeof address === "object") address = address.toString("hex");
-
-    let utxos = await this.db.GetUtxos(true);
-
-    let navConfirmed = bitcore.crypto.BN.Zero;
-    let xNavConfirmed = bitcore.crypto.BN.Zero;
-    let tokConfirmed = {};
-    let coldConfirmed = bitcore.crypto.BN.Zero;
-    let votingConfirmed = bitcore.crypto.BN.Zero;
-    let navPending = bitcore.crypto.BN.Zero;
-    let xNavPending = bitcore.crypto.BN.Zero;
-    let tokPending = {};
-    let coldPending = bitcore.crypto.BN.Zero;
-    let votingPending = bitcore.crypto.BN.Zero;
-
-    let tip = await this.GetTip();
-
-    for (let u in utxos) {
-      let utxo = utxos[u];
-      let prevHash = utxo.id.split(":")[0];
-      let prevOut = utxo.id.split(":")[1];
-
-      let tx = await this.db.GetTx(prevHash);
-
-      if (!tx) continue;
-
-      let pending = false;
-
-      if (
-        (tx.pos < 2 && tip - tx.height < 120) ||
-        tx.height <= 0 ||
-        (tx.height == undefined && tx.pos == undefined)
-      )
-        pending = true;
-
-      if (
-        utxo.type & OutputTypes.XNAV &&
-        (!address || utxo.hashId == address) &&
-        utxo.amount > 0
-      ) {
-        let txObj = bitcore.Transaction(tx.hex);
-        let tokId = {
-          tokenId: txObj.outputs[prevOut].tokenId.toString("hex"),
-          tokenNftId: txObj.outputs[prevOut].tokenNftId.toString(),
-        };
-        if (
-          tokId.tokenId ==
-            "0000000000000000000000000000000000000000000000000000000000000000" &&
-          tokId.tokenNftId == -1
-        ) {
-          if (pending)
-            xNavPending = xNavPending.add(new bitcore.crypto.BN(utxo.amount));
-          else
-            xNavConfirmed = xNavConfirmed.add(
-              new bitcore.crypto.BN(utxo.amount)
-            );
-        } else {
-          if (pending) {
-            if (!tokPending[tokId.tokenId + ":" + tokId.tokenNftId])
-              tokPending[tokId.tokenId + ":" + tokId.tokenNftId] = 0;
-            tokPending[tokId.tokenId + ":" + tokId.tokenNftId] =
-              tokPending[tokId.tokenId + ":" + tokId.tokenNftId] + utxo.amount;
-          } else {
-            if (!tokConfirmed[tokId.tokenId + ":" + tokId.tokenNftId])
-              tokConfirmed[tokId.tokenId + ":" + tokId.tokenNftId] = 0;
-            tokConfirmed[tokId.tokenId + ":" + tokId.tokenNftId] =
-              tokConfirmed[tokId.tokenId + ":" + tokId.tokenNftId] +
-              utxo.amount;
-          }
-        }
-      } else {
-        if (
-          utxo.type & OutputTypes.STAKED &&
-          (!address || utxo.stakingPk == address)
-        ) {
-          if (pending)
-            coldPending = coldPending.add(new bitcore.crypto.BN(utxo.amount));
-          else
-            coldConfirmed = coldConfirmed.add(
-              new bitcore.crypto.BN(utxo.amount)
-            );
-        } else if (
-          utxo.type & OutputTypes.NAV &&
-          (!address || utxo.spendingPk == address)
-        ) {
-          if (pending)
-            navPending = navPending.add(new bitcore.crypto.BN(utxo.amount));
-          else
-            navConfirmed = navConfirmed.add(new bitcore.crypto.BN(utxo.amount));
-        }
-        if (
-          utxo.type & OutputTypes.VOTING &&
-          (!address || utxo.votingPk == address)
-        ) {
-          if (pending)
-            votingPending = votingPending.add(
-              new bitcore.crypto.BN(utxo.amount)
-            );
-          else
-            votingConfirmed = votingConfirmed.add(
-              new bitcore.crypto.BN(utxo.amount)
-            );
-        }
-      }
-    }
-
-    let ret = {
-      nav: {
-        confirmed: navConfirmed.toNumber(),
-        pending: navPending.toNumber(),
-      },
-      xnav: {
-        confirmed: xNavConfirmed.toNumber(),
-        pending: xNavPending.toNumber(),
-      },
-      tokens: {},
-      nfts: {},
-      staked: {
-        confirmed: coldConfirmed.toNumber(),
-        pending: coldPending.toNumber(),
-      },
-      voting: {
-        confirmed: votingConfirmed.toNumber(),
-        pending: votingPending.toNumber(),
-      },
-    };
-
-    for (let i in tokConfirmed) {
-      let tokenId = i.split(":")[0];
-      let tokenNftId = i.split(":")[1];
-      if (tokenNftId == -1) {
-        if (!ret.tokens[tokenId]) {
-          ret.tokens[tokenId] = {};
-
-          let info = await this.GetTokenInfo(tokenId);
-          ret.tokens[tokenId].name = info.name;
-          ret.tokens[tokenId].code = info.code;
-          ret.tokens[tokenId].supply = info.supply;
-        }
-        ret.tokens[tokenId].confirmed = tokConfirmed[i];
-      } else {
-        if (!ret.nfts[tokenId]) {
-          ret.nfts[tokenId] = {};
-
-          let info = await this.GetTokenInfo(tokenId);
-          ret.nfts[tokenId].name = info.name;
-          ret.nfts[tokenId].scheme = info.code;
-          ret.nfts[tokenId].supply = info.supply;
-          ret.nfts[tokenId].confirmed = {};
-          ret.nfts[tokenId].pending = {};
-        }
-        let nftInfo = await this.GetNftInfo(tokenId, tokenNftId);
-
-        ret.nfts[tokenId].confirmed[tokenNftId] = nftInfo
-          ? nftInfo[0].metadata
-          : "";
-      }
-    }
-
-    for (let i in tokPending) {
-      let tokenId = i.split(":")[0];
-      let tokenNftId = i.split(":")[1];
-
-      if (tokenNftId == -1) {
-        if (!ret.tokens[tokenId]) {
-          ret.tokens[tokenId] = {};
-
-          let info = await this.GetTokenInfo(tokenId);
-          ret.tokens[tokenId].name = info.name;
-          ret.tokens[tokenId].code = info.code;
-          ret.tokens[tokenId].supply = info.supply;
-        }
-        ret.tokens[tokenId].pending = tokPending[i];
-      } else {
-        if (!ret.nfts[tokenId]) {
-          ret.nfts[tokenId] = {};
-
-          let info = await this.GetTokenInfo(tokenId);
-          ret.nfts[tokenId].name = info.name;
-          ret.nfts[tokenId].scheme = info.code;
-          ret.nfts[tokenId].supply = info.supply;
-          ret.nfts[tokenId].pending = {};
-          ret.nfts[tokenId].confirmed = {};
-        }
-        let nftInfo = await this.GetNftInfo(tokenId, tokenNftId);
-
-        if (nftInfo)
-          ret.nfts[tokenId].pending[tokenNftId] = nftInfo[0]
-            ? nftInfo[0].metadata
-            : "";
-      }
-    }
-
-    return ret;
-  }
-
-  async GetTokenInfo(id) {
-    let ret = await this.db.GetTokenInfo(id);
-
-    if (!this.client) return {};
-
-    if (!ret || !ret.name) {
-      try {
-        let token = await this.client.blockchain_token_getToken(id);
-
-        if (!token || (token && !token.name)) return {};
-
-        await this.db.AddTokenInfo(
-          token.id,
-          token.name,
-          token.token_code ? token.token_code : token.scheme,
-          token.max_supply,
-          token.version,
-          token.pubkey
-        );
-
-        return {
-          id: token.id,
-          name: token.name,
-          code: token.token_code ? token.token_code : token.scheme,
-          supply: token.max_supply,
-          version: token.version,
-          key: token.pubkey,
-        };
-      } catch (e) {
-        console.log(e);
-        return {};
-      }
-    } else {
-      return ret;
-    }
-  }
-
-  async GetNftInfo(id, nftId) {
-    let ret = await this.db.GetNftInfo(id, nftId);
-
-    if (!this.client) return;
-
-    if (!ret || !ret.metadata) {
-      try {
-        let token = await this.client.blockchain_token_getNft(
-          id,
-          parseInt(nftId)
-        );
-        if (!token || (token && !token.nfts)) return undefined;
-
-        let retArray = [];
-
-        for (let n in token.nfts) {
-          if (nftId != -1 && token.nfts[n].index != nftId) continue;
-          await this.db.AddNftInfo(
-            token.id,
-            token.nfts[n].index,
-            token.nfts[n].metadata
-          );
-          retArray.push({
-            id: token.nfts[n].index,
-            metadata: token.nfts[n].metadata,
-          });
-        }
-
-        return retArray;
-      } catch (e) {
-        console.log(e);
-        return undefined;
-      }
-    } else {
-      return [{ ...ret, id: parseInt(ret.id.split("-")[1]) }];
-    }
-  }
-
   async AddOutput(outpoint, out, height) {
     let amount = out.amount ? out.amount : out.satoshis;
     let label = out.isCt()
@@ -1748,9 +1352,9 @@ export class WalletFile extends events.EventEmitter {
           out.script.toAddress(this.network).toString()
         );
         if (
-          (await this.GetPoolSize(AddressTypes.NAV)) < this.GetMinPoolSize()
+          (await getPoolSize(this.db, AddressTypes.NAV)) < this.GetMinPoolSize()
         ) {
-          this.Log("Filling NAV key pool");
+          this.Log.Message("Filling NAV key pool");
           await this.NavFillKeyPool(
             this.spendingPassword,
             this.GetMinPoolSize() * 2
@@ -1764,15 +1368,6 @@ export class WalletFile extends events.EventEmitter {
     } catch (e) {
       return false;
     }
-  }
-
-  async Spend(outPoint, spentIn) {
-    let prev = await this.db.GetUtxo(outPoint);
-    if (prev && prev.spentIn && spentIn && prev.spentIn == spentIn) {
-      return false;
-    }
-    await this.db.SpendUtxo(outPoint, spentIn);
-    return true;
   }
 
   async LockOrderInputs(order) {
@@ -1809,698 +1404,6 @@ export class WalletFile extends events.EventEmitter {
     this.emit("new_tx", []);
   }
 
-  async GetTx(hash, inMine, height, requestInputs = true) {
-    let tx;
-    let prevHeight;
-
-    let cacheTx = await this.db.GetTx(hash);
-
-    if (cacheTx) {
-      cacheTx.tx = bitcore.Transaction(cacheTx.hex);
-      tx = cacheTx;
-      prevHeight = tx.height + 0;
-    }
-
-    if (!tx) {
-      let tx_;
-      try {
-        if (!this.client) return;
-        tx_ = await this.client.blockchain_transaction_get(hash, false);
-      } catch (e) {
-        this.Log(`error getting tx ${hash}: ${e}`);
-        await this.ManageElectrumError(e);
-        sleep(1);
-        return await this.GetTx(hash, inMine, height, requestInputs);
-      }
-
-      tx = { txid: hash, hex: tx_ };
-
-      try {
-        await this.db.AddTx(tx);
-      } catch (e) {
-        console.log("AddTx", e);
-      }
-
-      tx.tx = bitcore.Transaction(tx.hex);
-    }
-
-    if (!tx.height || tx.height <= 0 || (height && height != tx.height)) {
-      let heightBlock;
-      try {
-        if (!this.client) return;
-        heightBlock = await this.client.blockchain_transaction_getMerkle(hash);
-        tx.height = heightBlock.block_height;
-        tx.pos = heightBlock.pos;
-      } catch (e) {}
-    }
-
-    let mustNotify = false;
-
-    if (tx.height != prevHeight) {
-      if (tx.height) await this.db.SetTxHeight(hash, tx.height, tx.pos);
-      mustNotify = true;
-    }
-
-    if (!requestInputs) return tx;
-
-    await this.ProcessTx(tx, mustNotify);
-
-    await this.db.MarkAsFetched(hash);
-
-    return tx;
-  }
-
-  async ProcessTx(tx, mustNotify = true) {
-    let mine = false;
-    let memos = { in: [], out: [] };
-
-    let deltaNav = 0;
-    let deltaXNav = {};
-    let deltaCold = 0;
-    let addressesIn = { spending: [], staking: [] };
-    let addressesOut = { spending: [], staking: [] };
-
-    for (let i in tx.tx.inputs) {
-      if (typeof inMine !== "undefined" && !inMine[i]) continue;
-
-      let input = tx.tx.inputs[i].toObject();
-
-      if (
-        input.prevTxId ==
-        "0000000000000000000000000000000000000000000000000000000000000000"
-      )
-        continue;
-
-      let prevTx = (
-        await this.GetTx(input.prevTxId, undefined, undefined, false)
-      ).tx;
-      let prevOut = prevTx.outputs[input.outputIndex];
-
-      if (prevOut.isCt() || prevOut.isNft()) {
-        let hid = blsct.GetHashId(prevOut, this.mvk);
-        if (hid) {
-          let hashId = new Buffer(hid).toString("hex");
-          let acc = await this.db.HaveKey(hashId);
-          if (acc) {
-            if (
-              blsct.RecoverBLSCTOutput(
-                prevOut,
-                this.mvk,
-                undefined,
-                acc[0],
-                acc[1],
-                prevOut.tokenId,
-                prevOut.tokenNftId
-              )
-            ) {
-              mine = true;
-              let newOutput = await this.AddOutput(
-                `${input.prevTxId}:${input.outputIndex}`,
-                prevOut,
-                prevTx.height
-              );
-              let newSpend = await this.Spend(
-                `${input.prevTxId}:${input.outputIndex}`,
-                `${tx.txid}:${i}`
-              );
-              if (newSpend || newOutput) mustNotify = true;
-              if (
-                !deltaXNav[
-                  prevOut.tokenId.toString("hex") + ":" + prevOut.tokenNftId
-                ]
-              )
-                deltaXNav[
-                  prevOut.tokenId.toString("hex") + ":" + prevOut.tokenNftId
-                ] = 0;
-              deltaXNav[
-                prevOut.tokenId.toString("hex") + ":" + prevOut.tokenNftId
-              ] -= prevOut.amount ? prevOut.amount : prevOut.satoshis;
-              memos.in.push(prevOut.memo);
-            }
-          }
-        }
-      } else if (
-        prevOut.script.isPublicKeyHashOut() ||
-        prevOut.script.isPublicKeyOut()
-      ) {
-        let hashPk = prevOut.script.isPublicKeyOut()
-          ? ripemd160(sha256(prevOut.script.getPublicKey()))
-          : prevOut.script.getPublicKeyHash();
-        let hashId = new Buffer(hashPk).toString("hex");
-
-        let add = bitcore
-          .Address(hashPk, this.network, "pubkeyhash")
-          .toString();
-        if (addressesIn.spending.indexOf(add) == -1)
-          addressesIn.spending.push(add);
-
-        if (await this.db.HaveKey(hashId)) {
-          mine = true;
-          let newOutput = await this.AddOutput(
-            `${input.prevTxId}:${input.outputIndex}`,
-            prevOut,
-            prevTx.height
-          );
-          let newSpend = await this.Spend(
-            `${input.prevTxId}:${input.outputIndex}`,
-            `${tx.txid}:${i}`
-          );
-          if (newSpend || newOutput) mustNotify = true;
-          deltaNav -= prevOut.satoshis;
-        }
-      } else if (
-        prevOut.script.isColdStakingOutP2PKH() ||
-        prevOut.script.isColdStakingV2Out()
-      ) {
-        let hashPk = prevOut.script.getPublicKeyHash();
-        let hashId = new Buffer(hashPk).toString("hex");
-
-        let addSp = bitcore
-          .Address(hashPk, this.network, "pubkeyhash")
-          .toString();
-        let addSt = bitcore
-          .Address(
-            prevOut.script.getStakingPublicKeyHash(),
-            this.network,
-            "pubkeyhash"
-          )
-          .toString();
-
-        if (addressesIn.spending.indexOf(addSp) == -1) {
-          addressesIn.spending.push(addSp);
-        }
-
-        if (addressesIn.staking.indexOf(addSt) == -1) {
-          addressesIn.staking.push(addSt);
-        }
-
-        if (await this.db.HaveKey(hashId)) {
-          mine = true;
-          let newOutput = await this.AddOutput(
-            `${input.prevTxId}:${input.outputIndex}`,
-            prevOut,
-            prevTx.height
-          );
-          let newSpend = await this.Spend(
-            `${input.prevTxId}:${input.outputIndex}`,
-            `${tx.txid}:${i}`
-          );
-          if (newSpend || newOutput) mustNotify = true;
-          deltaCold -= prevOut.satoshis;
-        }
-      }
-    }
-
-    for (let i in tx.tx.outputs) {
-      let out = tx.tx.outputs[i];
-
-      if (out.isCt() || out.isNft()) {
-        let hid = blsct.GetHashId(out, this.mvk);
-        if (hid) {
-          let hashId = new Buffer(hid).toString("hex");
-          let acc = await this.db.HaveKey(hashId);
-
-          if (acc) {
-            if (
-              blsct.RecoverBLSCTOutput(
-                out,
-                this.mvk,
-                undefined,
-                acc[0],
-                acc[1],
-                out.tokenId,
-                out.tokenNftId
-              )
-            ) {
-              mine = true;
-              let newOutput = await this.AddOutput(
-                `${tx.txid}:${i}`,
-                out,
-                tx.height
-              );
-              if (newOutput) mustNotify = true;
-              if (
-                !deltaXNav[out.tokenId.toString("hex") + ":" + out.tokenNftId]
-              )
-                deltaXNav[
-                  out.tokenId.toString("hex") + ":" + out.tokenNftId
-                ] = 0;
-              deltaXNav[out.tokenId.toString("hex") + ":" + out.tokenNftId] +=
-                out.amount ? out.amount : out.satoshis;
-              memos.out.push(out.memo);
-            }
-          }
-        }
-      } else if (
-        out.script.toHex() == "51" &&
-        out.tokenNftId.toString() != -1
-      ) {
-        let hid = blsct.GetHashId(out, this.mvk);
-        if (hid) {
-          let hashId = new Buffer(hid).toString("hex");
-          if (await this.db.HaveKey(hashId)) {
-            mine = true;
-            let newOutput = await this.AddOutput(
-              `${tx.txid}:${i}`,
-              out,
-              tx.height
-            );
-            if (newOutput) mustNotify = true;
-            if (!deltaXNav[out.tokenId.toString("hex") + ":" + out.tokenNftId])
-              deltaXNav[out.tokenId.toString("hex") + ":" + out.tokenNftId] = 0;
-            deltaXNav[out.tokenId.toString("hex") + ":" + out.tokenNftId] +=
-              out.amount ? out.amount : out.satoshis;
-          }
-        }
-      } else if (
-        out.script.isPublicKeyHashOut() ||
-        out.script.isPublicKeyOut()
-      ) {
-        let hashPk = out.script.isPublicKeyOut()
-          ? ripemd160(sha256(out.script.getPublicKey()))
-          : out.script.getPublicKeyHash();
-        let hashId = new Buffer(hashPk).toString("hex");
-        let add = bitcore
-          .Address(hashPk, this.network, "pubkeyhash")
-          .toString();
-        if (addressesOut.spending.indexOf(add) == -1)
-          addressesOut.spending.push(add);
-        if (await this.db.HaveKey(hashId)) {
-          mine = true;
-          let newOutput = await this.AddOutput(
-            `${tx.txid}:${i}`,
-            out,
-            tx.height
-          );
-          if (newOutput) mustNotify = true;
-          deltaNav += out.satoshis;
-        }
-      } else if (
-        out.script.isColdStakingOutP2PKH() ||
-        out.script.isColdStakingV2Out()
-      ) {
-        let hashPk = out.script.getPublicKeyHash();
-        let hashId = new Buffer(hashPk).toString("hex");
-
-        let addSp = bitcore
-          .Address(hashPk, this.network, "pubkeyhash")
-          .toString();
-        let addSt = bitcore
-          .Address(
-            out.script.getStakingPublicKeyHash(),
-            this.network,
-            "pubkeyhash"
-          )
-          .toString();
-
-        if (addressesOut.spending.indexOf(addSp) == -1)
-          addressesOut.spending.push(addSp);
-        if (addressesOut.staking.indexOf(addSt) == -1)
-          addressesOut.staking.push(addSt);
-
-        if (await this.db.HaveKey(hashId)) {
-          mine = true;
-          let newOutput = await this.AddOutput(
-            `${tx.txid}:${i}`,
-            out,
-            tx.height
-          );
-          if (newOutput) mustNotify = true;
-          deltaCold += out.satoshis;
-        }
-      }
-
-      if (out.vData[0] == 7 || out.vData[0] == 8) {
-        try {
-          let name = out.vData.slice(5, 5 + out.vData[4]).toString();
-          if (await this.IsMyName(name)) {
-            let data = await this.ResolveName(name);
-            await this.AddName(name, undefined, data);
-          }
-        } catch (e) {
-          console.log(e);
-        }
-      } else if (out.vData[0] == 2) {
-        try {
-          let values = bitcore.util.VData.parse(out.vData);
-          let id = bitcore.crypto.Hash.sha256sha256(
-            Buffer.concat([new Buffer([48]), values[1]])
-          )
-            .reverse()
-            .toString("hex");
-          this.emit("new_token", id);
-          await this.db.AddTokenInfo(
-            id,
-            values[2].toString(),
-            values[4].toString(),
-            values[5] / (values[3] == 0 ? 1e8 : 1),
-            values[3],
-            values[1]
-          );
-
-          let derived = await this.DeriveSpendingKeyFromStringHash(
-            "token/",
-            values[2].toString() + values[4].toString(),
-            this.spendingPassword
-          );
-          let key = blsct.SkToPubKey(new Buffer(derived).toString("hex"));
-
-          let keyId = new Buffer(
-            bitcore.crypto.Hash.sha256sha256(
-              Buffer.concat([new Buffer([48]), new Buffer(key.serialize())])
-            )
-          )
-            .reverse()
-            .toString("hex");
-
-          if (keyId == id) {
-            try {
-              await this.db.AddKey(
-                keyId.toString("hex"),
-                key.serialize().toString("hex"),
-                AddressTypes.TOKEN,
-                values[2],
-                false,
-                false,
-                values[4],
-                this.spendingPassword
-              );
-            } catch (e) {
-              console.log(e.message);
-            }
-          }
-        } catch (e) {
-          console.log(e);
-        }
-      } else if (out.vData[0] == 3) {
-        try {
-          let values = bitcore.util.VData.parse(out.vData);
-          let id = bitcore.crypto.Hash.sha256sha256(
-            Buffer.concat([new Buffer([48]), values[1]])
-          )
-            .reverse()
-            .toString("hex");
-          console.log(`mint token ${id} ${values[2]} ${values[3]}`);
-          if (values[3].length > 0) {
-            await this.db.AddNftInfo(id, values[2], values[3]);
-          }
-        } catch (e) {
-          console.log(e);
-        }
-      } else if (out.vData[0] == 6) {
-        try {
-          let ephKey = new blsct.mcl.G1();
-          ephKey.deserialize(out.vData.slice(36, 84));
-          let nonce = blsct.mcl.mul(ephKey, this.mvk);
-
-          let decryptKey = bitcore.crypto.Blsct.HashG1Element(nonce, 1);
-          let decrypted = this.Decrypt(
-            out.vData.slice(84, out.vData.length),
-            decryptKey
-          )
-            .toString()
-            .split(";");
-          let decryptedName = decrypted[0];
-          let decryptedKey = decrypted[1];
-
-          let sh = decryptedName + decryptedKey;
-          let nameHash = bitcore.crypto.Hash.sha256sha256(
-            Buffer.concat([new Buffer([sh.length]), new Buffer(sh, "utf-8")])
-          );
-
-          let bufferHash = new Buffer(nameHash);
-
-          if (
-            out.vData.slice(4, 36).toString("hex") == bufferHash.toString("hex")
-          ) {
-            this.emit("new_name", decryptedName.toString());
-            await this.AddName(decryptedName.toString(), tx.height);
-          }
-        } catch (e) {}
-      }
-    }
-
-    if (mustNotify && mine) {
-      for (let d in deltaXNav) {
-        if (deltaXNav[d] != 0 || memos.out.length) {
-          let token = d.split(":")[0];
-          let nftid = d.split(":")[1];
-          let fisxnav =
-            token ==
-            "0000000000000000000000000000000000000000000000000000000000000000";
-          let fistoken = nftid == "-1";
-          let info = !fisxnav
-            ? await this.GetTokenInfo(token)
-            : { name: "xnav", code: "xnav" };
-          this.emit("new_tx", {
-            txid: tx.txid,
-            amount: deltaXNav[d],
-            type: fisxnav ? "xnav" : fistoken ? "token" : "nft",
-            token_name: fisxnav ? "xnav" : info.name,
-            token_code: fisxnav ? "xnav" : fistoken ? info.code : info.name,
-            confirmed: tx.height > -0,
-            height: tx.height,
-            pos: tx.pos,
-            timestamp: tx.tx.time,
-            memos: memos,
-            strdzeel: tx.strdzeel,
-            token_id: token,
-            nft_id: nftid,
-          });
-          await this.db.AddWalletTx(
-            tx.txid,
-            fisxnav ? "xnav" : fistoken ? "token" : "nft",
-            deltaXNav[d],
-            tx.height > 0,
-            tx.height,
-            tx.pos,
-            tx.tx.time,
-            memos,
-            tx.strdzeel,
-            addressesIn,
-            addressesOut,
-            fisxnav ? "xnav" : info.name,
-            fisxnav ? "xnav" : fistoken ? info.code : info.name,
-            token,
-            nftid
-          );
-        }
-      }
-      if (deltaNav != 0) {
-        this.emit("new_tx", {
-          txid: tx.txid,
-          amount: deltaNav,
-          type: "nav",
-          confirmed: tx.height > 0,
-          height: tx.height,
-          pos: tx.pos,
-          timestamp: tx.tx.time,
-          strdzeel: tx.strdzeel,
-        });
-        await this.db.AddWalletTx(
-          tx.txid,
-          "nav",
-          deltaNav,
-          tx.height > 0,
-          tx.height,
-          tx.pos,
-          tx.tx.time,
-          tx.strdzeel,
-          addressesIn,
-          addressesOut
-        );
-      }
-      if (deltaCold != 0) {
-        this.emit("new_tx", {
-          txid: tx.txid,
-          amount: deltaCold,
-          type: "cold_staking",
-          confirmed: tx.height > 0,
-          height: tx.height,
-          pos: tx.pos,
-          timestamp: tx.tx.time,
-          strdzeel: tx.strdzeel,
-        });
-        await this.db.AddWalletTx(
-          tx.txid,
-          "cold_staking",
-          deltaCold,
-          tx.height > 0,
-          tx.height,
-          tx.pos,
-          tx.tx.time,
-          tx.strdzeel,
-          addressesIn,
-          addressesOut
-        );
-      }
-    }
-  }
-
-  async GetMyNames() {
-    return await this.db.GetMyNames();
-  }
-
-  async GetMyTokens() {
-    let allTokens = await this.db.GetMyTokens();
-
-    return await asyncFilter(allTokens, async (token) => {
-      return this.db.HaveKey(token.id);
-    });
-  }
-
-  async AddName(name, height, data = {}) {
-    try {
-      let exists = await this.db.GetName(name);
-      await this.db.AddName(name, height || exists.height, data);
-      if (!exists) this.emit("new_name", name, height);
-      else this.emit("update_name", name, exists.height, data);
-      return true;
-    } catch (e) {
-      return false;
-    }
-  }
-
-  IsValidDotNavName(name) {
-    if (!name || !name.length) return false;
-
-    if (name.length >= 64 || name.length < 5) return false;
-
-    if (
-      !/^[abcdefghijklmnopqrstuvwxyz01234566789][abcdefghijklmnopqrstuvwxyz01234566789-]*\.nav$/.test(
-        name
-      )
-    )
-      return false;
-
-    return true;
-  }
-
-  IsValidDotNavKey(key) {
-    if (!key || !key.length) return false;
-
-    if (key.length >= 64 || key.length < 1) return false;
-
-    if (
-      !/^[abcdefghijklmnopqrstuvwxyz01234566789][abcdefghijklmnopqrstuvwxyz01234566789-]*$/.test(
-        key
-      )
-    )
-      return false;
-
-    return true;
-  }
-
-  async IsMyName(name) {
-    return await this.db.GetName(name);
-  }
-
-  async AddStakingAddress(pk, pk2, sync = false) {
-    if (
-      pk instanceof bitcore.Address ||
-      (typeof pk === "string" && pk != "" && !bitcore.util.js.isHexa(pk))
-    )
-      pk = bitcore.Address(pk).toObject().hash;
-    if (
-      pk2 instanceof bitcore.Address ||
-      (typeof pk2 === "string" && pk2 != "" && !bitcore.util.js.isHexa(pk2))
-    )
-      pk2 = bitcore.Address(pk2).toObject().hash;
-
-    if (pk instanceof Buffer) pk = pk.toString("hex");
-
-    if (pk2 instanceof Buffer) pk2 = pk2.toString("hex");
-
-    let strAddress = bitcore
-      .Address(new Buffer(pk, "hex"), this.network)
-      .toString();
-
-    let strAddress2 = pk2
-      ? bitcore.Address(new Buffer(pk2, "hex"), this.network).toString()
-      : "";
-
-    let isInDb = await this.db.GetStakingAddress(strAddress, strAddress2);
-
-    if (!isInDb) {
-      try {
-        await this.db.AddStakingAddress(strAddress, strAddress2, pk, pk2);
-
-        this.emit("new_staking_address", strAddress, strAddress2);
-        this.Log(`New staking address: ${strAddress} ${strAddress2}`);
-
-        if (sync) await this.Sync(strAddress);
-      } catch (e) {
-        //console.log(e)
-      }
-    }
-  }
-
-  async IsMine(input) {
-    if (input.script) {
-      let script = bitcore.Script(input.script);
-
-      if (script.isPublicKeyHashOut() || script.isPublicKeyOut()) {
-        let hashId = new Buffer(
-          script.isPublicKeyOut()
-            ? ripemd160(sha256(script.getPublicKey()))
-            : script.getPublicKeyHash()
-        ).toString("hex");
-
-        if (await this.db.HaveKey(hashId)) {
-          return true;
-        }
-      } else if (script.isColdStakingOutP2PKH()) {
-        let hashId = new Buffer(script.getPublicKeyHash()).toString("hex");
-
-        if (await this.db.HaveKey(hashId)) {
-          if (script.isColdStakingOutP2PKH()) {
-            let stakingPk = script.getStakingPublicKeyHash();
-            await this.AddStakingAddress(stakingPk, undefined, true);
-          } else if (script.isColdStakingV2Out()) {
-            let stakingPk = script.getStakingPublicKeyHash();
-            let votingPk = script.getVotingPublicKeyHash();
-            await this.AddStakingAddress(stakingPk, votingPk, true);
-          }
-
-          return true;
-        }
-      } else if (script.isColdStakingV2Out()) {
-        let hashId = new Buffer(script.getPublicKeyHash()).toString("hex");
-        let hashIdVoting = new Buffer(script.getVotingPublicKeyHash()).toString(
-          "hex"
-        );
-
-        if (
-          (await this.db.HaveKey(hashId)) ||
-          (await this.db.HaveKey(hashIdVoting))
-        ) {
-          if (script.isColdStakingOutP2PKH()) {
-            let stakingPk = script.getStakingPublicKeyHash();
-            await this.AddStakingAddress(stakingPk, undefined, true);
-          } else if (script.isColdStakingV2Out()) {
-            let stakingPk = script.getStakingPublicKeyHash();
-            let votingPk = script.getVotingPublicKeyHash();
-            await this.AddStakingAddress(stakingPk, votingPk, true);
-          }
-
-          return true;
-        }
-      }
-    } else if (input.spendingKey && input.outputKey) {
-      let hid = blsct.GetHashId(
-        { ok: input.outputKey, sk: input.spendingKey },
-        this.mvk
-      );
-      if (hid) {
-        let hashId = new Buffer(hid).toString("hex");
-        if (hashId && (await this.db.HaveKey(hashId))) {
-          return true;
-        }
-      }
-    }
-
-    return false;
-  }
 
   async GetTxKeys(hash, height, useCache = true) {
     let txKeys;
@@ -2517,7 +1420,7 @@ export class WalletFile extends events.EventEmitter {
         if (!this.client) return;
         txKeys = await this.client.blockchain_transaction_getKeys(hash);
       } catch (e) {
-        this.Log(`error getting tx keys ${hash}: ${e}`);
+        this.Log.Message(`error getting tx keys ${hash}: ${e}`);
         await this.ManageElectrumError(e);
         sleep(3);
         return await this.GetTxKeys(hash, height, useCache);
@@ -2526,7 +1429,7 @@ export class WalletFile extends events.EventEmitter {
 
       try {
         await this.db.AddTxKeys(txKeys);
-      } catch (e) {}
+      } catch (e) { }
     }
 
     let inMine = [];
@@ -2534,7 +1437,7 @@ export class WalletFile extends events.EventEmitter {
 
     for (let i in txKeys.vin) {
       let input = txKeys.vin[i];
-      let thisMine = await this.IsMine(input);
+      let thisMine = await this.txProcessor.IsMine(input);
 
       if (thisMine) {
         //await this.GetTx(input.txid, undefined, undefined, false)
@@ -2546,7 +1449,7 @@ export class WalletFile extends events.EventEmitter {
 
     for (let j in txKeys.vout) {
       let output = txKeys.vout[j];
-      isMine |= await this.IsMine(output);
+      isMine |= await this.txProcessor.IsMine(output);
     }
 
     if (isMine) {
@@ -2576,7 +1479,7 @@ export class WalletFile extends events.EventEmitter {
       Buffer.concat([new Buffer([sh.length]), new Buffer(sh, "utf-8")])
     );
 
-    let msk = await this.GetMasterSpendKey(spendingPassword);
+    let msk = await getMasterSpendKey(this.db, spendingPassword);
 
     if (!msk) return;
 
@@ -2607,7 +1510,7 @@ export class WalletFile extends events.EventEmitter {
     tokenNftId = -1
   ) {
     let mvk = this.mvk;
-    let msk = await this.GetMasterSpendKey(spendingPassword);
+    let msk = await getMasterSpendKey(this.db, spendingPassword);
 
     if (!(msk && mvk)) return;
 
@@ -2684,7 +1587,7 @@ export class WalletFile extends events.EventEmitter {
     if (amount < 0) throw new TypeError("Amount must be positive");
 
     let mvk = this.mvk;
-    let msk = await this.GetMasterSpendKey(spendingPassword);
+    let msk = await getMasterSpendKey(this.db, spendingPassword);
 
     if (!(msk && mvk)) return;
 
@@ -2768,7 +1671,7 @@ export class WalletFile extends events.EventEmitter {
     tokenId = new Buffer(tokenId, "hex");
 
     let mvk = this.mvk;
-    let msk = await this.GetMasterSpendKey(spendingPassword);
+    let msk = await getMasterSpendKey(this.db, spendingPassword);
 
     if (!(msk && mvk)) return;
 
@@ -2817,14 +1720,14 @@ export class WalletFile extends events.EventEmitter {
     let dests = _.isArray(dest)
       ? dest
       : [
-          {
-            dest: dest,
-            amount: useFullAmount ? utxoAmount : amount,
-            memo: memo,
-            vData: vData,
-            extraKey: extraKey,
-          },
-        ];
+        {
+          dest: dest,
+          amount: useFullAmount ? utxoAmount : amount,
+          memo: memo,
+          vData: vData,
+          extraKey: extraKey,
+        },
+      ];
 
     for (let i in dests) {
       if (
@@ -2852,16 +1755,16 @@ export class WalletFile extends events.EventEmitter {
 
     let txxNav = !ignoreFees
       ? await blsct.CreateTransaction(
-          utxos,
-          [],
-          mvk,
-          msk,
-          false,
-          new Buffer(new Uint8Array(32)),
-          -1,
-          txTok.feeAmount,
-          aggFee
-        )
+        utxos,
+        [],
+        mvk,
+        msk,
+        false,
+        new Buffer(new Uint8Array(32)),
+        -1,
+        txTok.feeAmount,
+        aggFee
+      )
       : undefined;
 
     let toCombine = [txTok.toString()];
@@ -2882,7 +1785,7 @@ export class WalletFile extends events.EventEmitter {
 
     let prevOutPoint =
       tx.inputs[0].prevTxId.toString("hex") + ":" + tx.inputs[0].outputIndex;
-    let prevTx = await this.GetTx(tx.inputs[0].prevTxId.toString("hex"));
+    let prevTx = await this.txProcessor.GetTx(tx.inputs[0].prevTxId.toString("hex"));
     let output = prevTx.tx.outputs[tx.inputs[0].outputIndex];
     let prevTokenId = output.tokenId
       ? Buffer.from(output.tokenId, "hex")
@@ -2895,7 +1798,7 @@ export class WalletFile extends events.EventEmitter {
     ) {
       return await this.xNavCreateTransaction(
         (
-          await this.xNavReceivingAddresses(true)
+          await this.getAddress.xNavReceivingAddresses(true)
         )[0].address,
         0,
         undefined,
@@ -2913,7 +1816,7 @@ export class WalletFile extends events.EventEmitter {
     } else {
       return await this.tokenCreateTransaction(
         (
-          await this.xNavReceivingAddresses(true)
+          await this.getAddress.xNavReceivingAddresses(true)
         )[0].address,
         0,
         undefined,
@@ -2949,7 +1852,7 @@ export class WalletFile extends events.EventEmitter {
       if (currentStatus && currentStatus.spender_txhash)
         throw new Error("Inputs are spent");
 
-      let prevTx = await this.GetTx(input.prevTxId.toString("hex"));
+      let prevTx = await this.txProcessor.GetTx(input.prevTxId.toString("hex"));
 
       let output = prevTx.tx.outputs[input.outputIndex];
       blsct.H(output.tokenId, parseInt(output.tokenNftId.toString()));
@@ -3051,9 +1954,14 @@ export class WalletFile extends events.EventEmitter {
   async SendTransactionSingle(tx) {
     if (!this.client) return;
     let ret = await this.client.blockchain_transaction_broadcast(tx);
+
+    console.log("SendTransactionSingle ret", ret)
     let txObj = bitcore.Transaction(tx);
 
     let tx_ = { txid: ret, hex: tx };
+
+    console.log("SendTransactionSingle ret", tx_)
+
 
     try {
       await this.db.AddTx(tx_);
@@ -3063,27 +1971,12 @@ export class WalletFile extends events.EventEmitter {
 
     tx_.tx = txObj;
 
-    await this.ProcessTx(tx_);
+    console.log("SendTransactionSingle txObj", txObj);
+
+
+    await this.txProcessor.ValidateTx(tx_);
 
     return ret;
-  }
-
-  Encrypt(plain, key) {
-    const iv = crypto.randomBytes(16);
-    const aes = crypto.createCipheriv("aes-256-cbc", key, iv);
-    let ciphertext = aes.update(plain);
-    ciphertext = Buffer.concat([iv, ciphertext, aes.final()]);
-    return ciphertext;
-  }
-
-  Decrypt(cypher, key) {
-    const ciphertextBytes = Buffer.from(cypher);
-    const iv = ciphertextBytes.slice(0, 16);
-    const data = ciphertextBytes.slice(16);
-    const aes = crypto.createDecipheriv("aes-256-cbc", key, iv);
-    let plaintextBytes = Buffer.from(aes.update(data));
-    plaintextBytes = Buffer.concat([plaintextBytes, aes.final()]);
-    return plaintextBytes;
   }
 
   async RegisterName(name, spendingPassword) {
@@ -3093,7 +1986,7 @@ export class WalletFile extends events.EventEmitter {
 
     try {
       nameResolve = await this.ResolveName(name);
-    } catch (e) {}
+    } catch (e) { }
 
     if (nameResolve["_key"]) throw new Error("Name is already registered");
 
@@ -3119,7 +2012,7 @@ export class WalletFile extends events.EventEmitter {
     let nonce = blsct.mcl.mul(destViewKey, bk);
 
     let encryptKey = bitcore.crypto.Blsct.HashG1Element(nonce, 1);
-    let encryptedName = this.Encrypt(
+    let encryptedName = encrypt(
       name + ";" + key.serializeToHexStr(),
       encryptKey
     );
@@ -3210,7 +2103,7 @@ export class WalletFile extends events.EventEmitter {
     if (consensus[24]?.value != 1)
       throw new Error("Private Tokens and NFTs are not active yet");
 
-    let token = await this.GetTokenInfo(id);
+    let token = await this.getInfo.GetTokenInfo(id);
 
     if (!token || (token && token.name == undefined))
       throw new Error("Unknown token");
@@ -3338,7 +2231,7 @@ export class WalletFile extends events.EventEmitter {
     if (prevOut.length == 0) throw new Error("You don't own the NFT");
 
     let mvk = this.mvk;
-    let msk = await this.GetMasterSpendKey(spendingPassword);
+    let msk = await getMasterSpendKey(this.db, spendingPassword);
 
     if (!(msk && mvk)) throw new Error("Wrong spending password");
 
@@ -3406,7 +2299,7 @@ export class WalletFile extends events.EventEmitter {
     if (consensus[24]?.value != 1)
       throw new Error("Private Tokens and NFTs are not active yet");
 
-    let token = await this.GetTokenInfo(id);
+    let token = await this.getInfo.GetTokenInfo(id);
 
     if (!token || (token && token.name == undefined))
       throw new Error("Unknown token");
@@ -3443,7 +2336,7 @@ export class WalletFile extends events.EventEmitter {
 
   async AcceptOrder(order, spendingPassword) {
     let mvk = this.mvk;
-    let msk = await this.GetMasterSpendKey(spendingPassword);
+    let msk = await getMasterSpendKey(this.db, spendingPassword);
 
     if (!(msk && mvk)) throw new Error("Wrong spending password");
 
@@ -3480,7 +2373,7 @@ export class WalletFile extends events.EventEmitter {
         ignore: true,
       },
       {
-        dest: (await this.xNavReceivingAddresses(true))[0].address,
+        dest: (await this.getAddress.xNavReceivingAddresses(true))[0].address,
         amount: order.receive[0].amount,
         tokenId: order.receive[0].tokenId,
         tokenNftId: order.receive[0].tokenNftId,
@@ -3530,7 +2423,7 @@ export class WalletFile extends events.EventEmitter {
     metadata = "",
     spendingPassword
   ) {
-    let token = await this.GetTokenInfo(id);
+    let token = await this.getInfo.GetTokenInfo(id);
 
     if (!token || (token && token.name == undefined))
       throw new Error("Unknown token");
@@ -3590,7 +2483,7 @@ export class WalletFile extends events.EventEmitter {
   }
 
   async CreateSellNftOrder(id, nftid, payTo, price, spendingPassword) {
-    let token = await this.GetTokenInfo(id);
+    let token = await this.getInfo.GetTokenInfo(id);
 
     if (!token || (token && token.name == undefined))
       throw new Error("Unknown token");
@@ -3632,7 +2525,7 @@ export class WalletFile extends events.EventEmitter {
   }
 
   async CreateBuyNftOrder(id, nftid, payTo, price, spendingPassword) {
-    let token = await this.GetTokenInfo(id);
+    let token = await this.getInfo.GetTokenInfo(id);
 
     if (!token || (token && token.name == undefined))
       throw new Error("Unknown token");
@@ -3695,14 +2588,14 @@ export class WalletFile extends events.EventEmitter {
       throw new Error("tokenInId and tokenOutId must be different");
 
     if (tokenInId != new Buffer(new Uint8Array(32)).toString("hex")) {
-      tokenIn = await this.GetTokenInfo(tokenInId);
+      tokenIn = await this.getInfo.GetTokenInfo(tokenInId);
 
       if (!tokenIn || (tokenIn && tokenIn.name == undefined))
         throw new Error("Unknown tokenInId");
     }
 
     if (tokenOutId != new Buffer(new Uint8Array(32)).toString("hex")) {
-      tokenOut = await this.GetTokenInfo(tokenOutId);
+      tokenOut = await this.getInfo.GetTokenInfo(tokenOutId);
 
       if (!tokenOut || (tokenOut && tokenOut.name == undefined))
         throw new Error("Unknown tokenInId");
@@ -3847,6 +2740,7 @@ export class WalletFile extends events.EventEmitter {
         dest.substring(dest.length - 4, dest.length) === ".nav"
       ) {
         let resolvedDest = (await this.ResolveName(dest))["."]?.nav;
+
         if (!resolvedDest) throw new Error("Can't resolve " + dest);
         dest = resolvedDest;
       }
@@ -3864,12 +2758,12 @@ export class WalletFile extends events.EventEmitter {
       );
     }
 
-    let msk = await this.GetMasterKey("xNavSpend", spendingPassword);
+    let msk = await getMasterKey("xNavSpend", spendingPassword, this.db);
 
     if (!msk) return;
 
     let utxos = await this.GetUtxos(type, fromAddress);
-
+  
     let tx = bitcore.Transaction();
     let addedInputs = 0;
     let privateKeys = [];
@@ -3881,8 +2775,8 @@ export class WalletFile extends events.EventEmitter {
       if (out.output.isCt() || out.output.isNft())
         throw new TypeError("NavSend can only spend nav outputs");
 
-      let prevtx = await this.GetTx(out.txid);
-
+      let prevtx = await this.txProcessor.GetTx(out.txid);
+     
       if (prevtx.tx.outputs[out.vout].hasBlsctKeys() && !selectxnav) continue;
       if (!prevtx.tx.outputs[out.vout].hasBlsctKeys() && selectxnav) continue;
 
@@ -3899,7 +2793,7 @@ export class WalletFile extends events.EventEmitter {
           : out.output.script.getPublicKeyHash()
       ).toString("hex");
 
-      let privK = await this.GetPrivateKey(hashId, spendingPassword);
+      let privK = await getPrivateKey(this.db, hashId, spendingPassword, this.network);
 
       if (privK) {
         addedInputs += out.output.satoshis;
@@ -3914,8 +2808,7 @@ export class WalletFile extends events.EventEmitter {
     if (addedInputs < amount + (subtractFee ? 0 : fee)) {
       if (selectxnav) {
         throw new Error(
-          `Not enough balance (required ${
-            amount + (subtractFee ? 0 : fee)
+          `Not enough balance (required ${amount + (subtractFee ? 0 : fee)
           }, selected ${addedInputs})`
         );
       } else {
@@ -3966,7 +2859,7 @@ export class WalletFile extends events.EventEmitter {
               new Buffer([bitcore.Networks[this.network].coldstaking]),
               bitcore.Address(fromAddress).toBuffer().slice(1),
               bitcore
-                .Address((await this.NavReceivingAddresses())[0].address)
+                .Address((await this.getAddress.NavReceivingAddresses())[0].address)
                 .toBuffer()
                 .slice(1),
             ],
@@ -3977,7 +2870,7 @@ export class WalletFile extends events.EventEmitter {
         );
       } else {
         tx.to(
-          (await this.NavReceivingAddresses())[0].address,
+          (await this.getAddress.NavReceivingAddresses())[0].address,
           addedInputs - (amount + (subtractFee ? 0 : fee))
         );
       }
@@ -3989,18 +2882,7 @@ export class WalletFile extends events.EventEmitter {
       ret.fee += fee;
       ret.tx.push(tx.toString());
     }
-
     return ret;
-  }
-
-  async GetPrivateKey(hashId, key) {
-    let ret = await this.db.GetKey(hashId, key);
-
-    if (!ret) return;
-
-    return ret.length > 100
-      ? bitcore.HDPrivateKey(ret, this.network).privateKey
-      : bitcore.PrivateKey(ret);
   }
 
   async AddCandidate(candidate, network) {
@@ -4027,4 +2909,5 @@ export class WalletFile extends events.EventEmitter {
       );
     }
   }
+  
 }
