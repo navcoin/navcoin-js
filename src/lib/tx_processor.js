@@ -584,18 +584,12 @@ export class TxProcessor {
     let { addressesIn, deltaNavInput, deltaXNavInput, deltaColdInput, inputIsMine, memosIn, mustNotifyIn, } = await this.validateTransactionInputs(tx);
     let { addressesOut, deltaNavOutput, deltaXNavOutput, deltaColdOutput, outputIsMine, memosOut, mustNotifyOut } = await this.validateTransactionOutputs(tx);
     let deltaXNav = { ...deltaXNavInput, ...deltaXNavOutput };
-    console.log("deltaXNav = { ...deltaXNavInput, ...deltaXNavOutput }; ", deltaXNav);
     let deltaNav = deltaNavInput += deltaNavOutput;
-    console.log("deltaNav = deltaNavInput += deltaNavOutput;", deltaNav);
-
     let deltaCold = deltaColdInput += deltaColdOutput
     let mine = inputIsMine ? inputIsMine : outputIsMine;
-
-    console.log(" let mine = inputIsMine ? inputIsMine : outputIsMine; ", mine)
     let memos = { in: memosIn, out: memosOut };
     mustNotify = mustNotifyIn ? mustNotifyIn : mustNotifyOut;
 
-    console.log(" mustNotify = mustNotifyIn ? mustNotifyIn : mustNotifyOut;", mustNotify);
 
     if (mustNotify && mine) {
       for (let d in deltaXNav) {
