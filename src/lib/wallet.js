@@ -49,8 +49,8 @@ const sha256 = bitcore.crypto.Hash.sha256;
 function msleep(n) {
   return new Promise((resolve) => setTimeout(resolve, n));
 }
-function sleep(n) {
-  msleep(n * 1000);
+async function sleep(n) {
+  await msleep(n * 1000);
 }
 
 export class WalletFile extends events.EventEmitter {
@@ -1069,16 +1069,16 @@ export class WalletFile extends events.EventEmitter {
 
       if (this.failedConnections >= this.electrumNodes.length) {
         this.emit("no_servers_available");
-        sleep(5);
+        await sleep(5);
         await this.Connect(true);
       } else {
-        sleep(1);
+        await sleep(1);
         await this.Connect(false);
       }
     }
 
     if (e === "server busy - request timed out") {
-      sleep(5);
+      await sleep(5);
     }
   }
 
@@ -1829,7 +1829,7 @@ export class WalletFile extends events.EventEmitter {
       } catch (e) {
         this.Log(`error getting tx ${hash}: ${e}`);
         await this.ManageElectrumError(e);
-        sleep(1);
+        await sleep(1);
         return await this.GetTx(hash, inMine, height, requestInputs);
       }
 
@@ -2519,7 +2519,7 @@ export class WalletFile extends events.EventEmitter {
       } catch (e) {
         this.Log(`error getting tx keys ${hash}: ${e}`);
         await this.ManageElectrumError(e);
-        sleep(3);
+        await sleep(3);
         return await this.GetTxKeys(hash, height, useCache);
       }
       txKeys.txidkeys = hash;
