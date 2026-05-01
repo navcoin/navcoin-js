@@ -247,8 +247,8 @@ export class WalletFile extends events.EventEmitter {
     this.type = (await this.db.GetValue("walletType")) || "navcoin-js-v1";
 
     this.electrumNodes =
-      options.nodes && option.nodes[this.network]
-        ? option.nodes[this.network]
+      options.nodes && options.nodes[this.network]
+        ? options.nodes[this.network]
         : nodes[this.network];
 
     if (!this.electrumNodes.length) {
