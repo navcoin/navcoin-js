@@ -27,16 +27,25 @@ export default class Db extends events.EventEmitter {
       "hex"
     );
 
+    // Close any previously open instances before reopening to avoid
+    // ConstraintError when Open() is called again on reconnect.
+    if (this.db) { try { this.db.close(); } catch {} delete this.db; }
+    if (this.dbTx) { try { this.dbTx.close(); } catch {} delete this.dbTx; }
+
     try {
       Dexie.dependencies.indexedDB = indexedDB || window.indexedDB;
       Dexie.dependencies.IDBKeyRange = IDBKeyRange || window.IDBKeyRange;
 
+      // Delete the tx DB before reopening — it is a working cache with no
+      // persistent state we need to keep, and indexeddbshim's SQLite backend
+      // throws ConstraintError if the object stores already exist in the file.
+      // Must be done after setting dependencies so indexeddbshim is wired up.
       this.db = new Dexie(filename, {
         indexedDB: indexedDB || window.indexedDB,
         IDBKeyRange: IDBKeyRange || window.IDBKeyRange,
       });
 
-      this.dbTx = new Dexie("___tx___", {
+      this.dbTx = new Dexie("___tx___" + filename, {
         indexedDB: indexedDB || window.indexedDB,
         IDBKeyRange: IDBKeyRange || window.IDBKeyRange,
       });
@@ -133,7 +142,7 @@ export default class Db extends events.EventEmitter {
 
   static async ListWallets() {
     return (await Dexie.getDatabaseNames()).filter(
-      (e) => e != "localforage" && e != "___tx___"
+      (e) => e != "localforage" && !e.startsWith("___tx___")
     );
   }
 

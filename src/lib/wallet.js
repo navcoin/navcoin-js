@@ -805,6 +805,12 @@ export class WalletFile extends events.EventEmitter {
     });
 
     this.client.subscribe.on("ready", async () => {
+      // Capture the client at the moment the ready event fires. If a
+      // disconnect/reconnect races with this async handler, all subsequent
+      // calls use this snapshot and bail out if the client has changed.
+      const client = this.client;
+      if (!client) return;
+
       this.emit(
         "connected",
         this.electrumNodes[this.electrumNodeIndex].host +
@@ -817,11 +823,15 @@ export class WalletFile extends events.EventEmitter {
 
       this.emit("bootstrap_started");
 
-      let tip = (await this.client.blockchain_headers_subscribe()).height;
-      this.client.blockchain_consensus_subscribe().then((consensus) => {
+      let tip = (await client.blockchain_headers_subscribe()).height;
+      client.blockchain_consensus_subscribe().then((consensus) => {
         this.db.WriteConsensusParameters(consensus);
       });
-      await this.client.blockchain_dao_subscribe();
+      await client.blockchain_dao_subscribe();
+
+      // If a disconnect raced with the awaits above, bail out now rather
+      // than continuing with a stale client reference.
+      if (this.client !== client) return;
 
       await this.SetTip(tip);
 
@@ -830,14 +840,14 @@ export class WalletFile extends events.EventEmitter {
         await this.db.SetValue("creationTip", tip);
       }
 
-      this.client.subscribe.on(
+      client.subscribe.on(
         "blockchain.headers.subscribe",
         async (event) => {
           await this.SetTip(event[0].height);
         }
       );
 
-      this.client.subscribe.on(
+      client.subscribe.on(
         "blockchain.outpoint.subscribe",
         async (event) => {
           if (event[1] && event[1].spender_txhash)
@@ -848,7 +858,7 @@ export class WalletFile extends events.EventEmitter {
         }
       );
 
-      this.client.subscribe.on(
+      client.subscribe.on(
         "blockchain.consensus.subscribe",
         async (event) => {
           await this.db.WriteConsensusParameters(event);
@@ -858,7 +868,7 @@ export class WalletFile extends events.EventEmitter {
       let candidates = await this.db.GetCandidates(this.network);
 
       for (let i in candidates) {
-        let currentStatus = await this.client.blockchain_outpoint_subscribe(
+        let currentStatus = await client.blockchain_outpoint_subscribe(
           candidates[i].input.split(":")[0],
           candidates[i].input.split(":")[1]
         );
@@ -895,7 +905,7 @@ export class WalletFile extends events.EventEmitter {
         this.p2pPool.connect();
       }
 
-      this.client.subscribe.on("blockchain.dao.subscribe", async (event) => {
+      client.subscribe.on("blockchain.dao.subscribe", async (event) => {
         let type =
           event[0].t == "c" ? this.daoConsultations : this.daoProposals;
         let hash = event[0].w.hash;
@@ -919,11 +929,15 @@ export class WalletFile extends events.EventEmitter {
           type[hash] = event[0].w;
         }
       });
-      if (!this.client) return;
+
+      // Bail out if a reconnect raced while we were syncing.
+      if (!this.client || this.client !== client) return;
 
       await this.Sync();
 
-      this.client.subscribe.on(
+      if (!this.client || this.client !== client) return;
+
+      client.subscribe.on(
         "blockchain.scripthash.subscribe",
         async (event) => {
           await this.ReceivedScriptHashStatus(event[0], event[1]);
